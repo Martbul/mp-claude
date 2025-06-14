@@ -1,16 +1,20 @@
 "use client"
 
 import { useState } from "react"
-import { mockFiles } from "../lib/mock-data"
-import { Folder, FileIcon, Upload, ChevronRight } from "lucide-react"
-import Link from "next/link"
+import { mockFiles, mockFolders } from "../lib/mock-data"
 import { Button } from "~/components/ui/button"
+import { FileRow, FolderRow } from "./file-row"
+import { ChevronRight, Upload } from "lucide-react"
 
 export default function GoogleDriveClone() {
-  const [currentFolder, setCurrentFolder] = useState<string | null>(null)
+  const [currentFolder, setCurrentFolder] = useState<string>("root")
 
   const getCurrentFiles = () => {
     return mockFiles.filter((file) => file.parent === currentFolder)
+  }
+
+  const getCurrentFolders = () => {
+    return mockFolders.filter((folder) => folder.parent === currentFolder)
   }
 
   const handleFolderClick = (folderId: string) => {
@@ -44,7 +48,7 @@ export default function GoogleDriveClone() {
         <div className="flex justify-between items-center mb-6">
           <div className="flex items-center">
             <Button
-              onClick={() => setCurrentFolder(null)}
+              onClick={() => setCurrentFolder("root")}
               variant="ghost"
               className="text-gray-300 hover:text-white mr-2"
             >
@@ -78,28 +82,12 @@ export default function GoogleDriveClone() {
           </div>
           <ul>
             {getCurrentFiles().map((file) => (
-              <li key={file.id} className="px-6 py-4 border-b border-gray-700 hover:bg-gray-750">
-                <div className="grid grid-cols-12 gap-4 items-center">
-                  <div className="col-span-6 flex items-center">
-                    {file.type === "folder" ? (
-                      <button
-                        onClick={() => handleFolderClick(file.id)}
-                        className="flex items-center text-gray-100 hover:text-blue-400"
-                      >
-                        <Folder className="mr-3" size={20} />
-                        {file.name}
-                      </button>
-                    ) : (
-                      <Link href={file.url ?? "#"} className="flex items-center text-gray-100 hover:text-blue-400">
-                        <FileIcon className="mr-3" size={20} />
-                        {file.name}
-                      </Link>
-                    )}
-                  </div>
-                  <div className="col-span-3 text-gray-400">{file.type === "folder" ? "Folder" : "File"}</div>
-                  <div className="col-span-3 text-gray-400">{file.type === "folder" ? "--" : "2 MB"}</div>
-                </div>
-              </li>
+              <FileRow key={file.id} file={file} />
+            ))}
+            {getCurrentFolders().map((folder) => (
+              <FolderRow key={folder.id} folder={folder} handleFolderClick={() => {
+                handleFolderClick(folder.id)
+              }} />
             ))}
           </ul>
         </div>
