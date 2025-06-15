@@ -1,21 +1,16 @@
 "use client"
 
-import { Button } from "~/components/ui/button"
 import { FileRow, FolderRow } from "./file-row"
-import { ChevronRight, Upload } from "lucide-react"
+import { ChevronRight } from "lucide-react"
 import type { files_table, folders_table } from "~/server/db/schema"
 import Link from "next/link"
+import { SignedIn, SignedOut, SignInButton, UserButton } from "@clerk/nextjs"
 
 export default function ClaudeContents(props: {
   files: (typeof files_table.$inferSelect)[];
   folders: (typeof folders_table.$inferSelect)[]; //$inferSelect lets you infer from the actal definition from the table
   parents: (typeof folders_table.$inferSelect)[]
 }) {
-
-  const handleUpload = () => {
-    alert("Upload functionality would be implemented here")
-  }
-
   return (
     <div className="min-h-screen bg-gray-900 text-gray-100 p-8">
       <div className="mx-auto max-w-6xl">
@@ -39,10 +34,14 @@ export default function ClaudeContents(props: {
               </div>
             ))}
           </div>
-          <Button onClick={handleUpload} className="bg-blue-600 text-white hover:bg-blue-700">
-            <Upload className="mr-2" size={20} />
-            Upload
-          </Button>
+          <div>
+            <SignedOut>
+              <SignInButton />
+            </SignedOut>
+            <SignedIn>
+              <UserButton />
+            </SignedIn>
+          </div>
         </div>
         <div className="bg-gray-800 rounded-lg shadow-xl">
           <div className="px-6 py-4 border-b border-gray-700">
