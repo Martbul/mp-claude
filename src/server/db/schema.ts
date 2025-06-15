@@ -1,3 +1,5 @@
+import "server-only"; //guarantees that you will get a build or at least runtime error if you put something from you server on the client
+
 import {
   int,
   text,
