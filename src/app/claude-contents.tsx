@@ -1,38 +1,16 @@
 "use client"
 
-import { useMemo, useState } from "react"
 import { Button } from "~/components/ui/button"
 import { FileRow, FolderRow } from "./file-row"
 import { ChevronRight, Upload } from "lucide-react"
 import type { files_table, folders_table } from "~/server/db/schema"
+import Link from "next/link"
 
 export default function ClaudeContents(props: {
-  files: typeof files_table.$inferSelect[];
-  folders: typeof folders_table.$inferSelect[]; //$inferSelect lets you infer from the actal definition from the table
+  files: (typeof files_table.$inferSelect)[];
+  folders: (typeof folders_table.$inferSelect)[]; //$inferSelect lets you infer from the actal definition from the table
+  parents: (typeof folders_table.$inferSelect)[]
 }) {
-  const [currentFolder, setCurrentFolder] = useState<number>(1)
-
-
-  const handleFolderClick = (folderId: number) => {
-    setCurrentFolder(folderId)
-  }
-
-  const breadcrumbs = useMemo(() => {
-    const breadcrumbs = []
-    let currentId = currentFolder
-
-    while (currentId !== 1) {
-      const folder = props.folders.find((folder) => folder.id === currentId)
-      if (folder) {
-        breadcrumbs.unshift(folder)
-        currentId = folder.parent ?? 1
-      } else {
-        break
-      }
-    }
-
-    return breadcrumbs
-  }, [currentFolder, props.folders])
 
   const handleUpload = () => {
     alert("Upload functionality would be implemented here")
@@ -40,26 +18,24 @@ export default function ClaudeContents(props: {
 
   return (
     <div className="min-h-screen bg-gray-900 text-gray-100 p-8">
-      <div className="max-w-6xl mx-auto">
+      <div className="mx-auto max-w-6xl">
         <div className="flex justify-between items-center mb-6">
           <div className="flex items-center">
-            <Button
-              onClick={() => setCurrentFolder(1)}
-              variant="ghost"
-              className="text-gray-300 hover:text-white mr-2"
+            <Link
+              href="/f/1"
+              className="mr-2 text-gray-300 hover:text-white"
             >
-              My Drive
-            </Button>
-            {breadcrumbs.map((folder, index) => (
+              My Claude
+            </Link>
+            {props.parents.map((folder, index) => (
               <div key={folder.id} className="flex items-center">
                 <ChevronRight className="mx-2 text-gray-500" size={16} />
-                <Button
-                  onClick={() => handleFolderClick(folder.id)}
-                  variant="ghost"
+                <Link
+                  href={`/f/${folder.id}`}
                   className="text-gray-300 hover:text-white"
                 >
                   {folder.name}
-                </Button>
+                </Link>
               </div>
             ))}
           </div>
@@ -79,9 +55,8 @@ export default function ClaudeContents(props: {
           <ul>
 
             {props.folders.map((folder) => (
-              <FolderRow key={folder.id} folder={folder} handleFolderClick={() => {
-                handleFolderClick(folder.id)
-              }} />
+              <FolderRow key={folder.id} folder={folder}
+              />
             ))} {props.files.map((file) => (
               <FileRow key={file.id} file={file} />
             ))}

@@ -4,14 +4,8 @@
 //
 //cause this is a server component every child that i has that is not expicitly said to be a client component will become a server component
 
-import { files_table, folders_table } from "~/server/db/schema";
-import ClaudeContents from "./claude-contents";
-import { db } from "~/server/db";
-
-export default async function MPClaude() {
-  const files = await db.select().from(files_table)
-  const folders = await db.select().from(folders_table)
-  return <ClaudeContents files={files} folders={folders} />
+export default async function HomePage() {
+  return <div>Home page</div>
 
 }
 
