@@ -5,12 +5,16 @@ import { ChevronRight } from "lucide-react"
 import type { files_table, folders_table } from "~/server/db/schema"
 import Link from "next/link"
 import { SignedIn, SignedOut, SignInButton, UserButton } from "@clerk/nextjs"
+import { UploadButton } from "~/components/uploadthing"
+import { useRouter } from "next/navigation"
 
 export default function ClaudeContents(props: {
   files: (typeof files_table.$inferSelect)[];
   folders: (typeof folders_table.$inferSelect)[]; //$inferSelect lets you infer from the actal definition from the table
   parents: (typeof folders_table.$inferSelect)[]
 }) {
+
+  const navigate = useRouter()
   return (
     <div className="min-h-screen bg-gray-900 text-gray-100 p-8">
       <div className="mx-auto max-w-6xl">
@@ -61,6 +65,9 @@ export default function ClaudeContents(props: {
             ))}
           </ul>
         </div>
+        <UploadButton endpoint="imageUploader" onClientUploadComplete={() => {
+          navigate.refresh()
+        }} />
       </div>
     </div>
   )
