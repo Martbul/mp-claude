@@ -9,28 +9,10 @@ const config = {
   eslint: {
     ignoreDuringBuilds: true,
   },
+
   typescript: {
     ignoreBuildErrors: true,
   },
-  // PostHog rewrites
-  async rewrites() {
-    return [
-      {
-        source: "/ingest/static/:path*",
-        destination: "https://eu-assets.i.posthog.com/static/:path*",
-      },
-      {
-        source: "/ingest/:path*",
-        destination: "https://eu.i.posthog.com/:path*",
-      },
-      {
-        source: "/ingest/decide",
-        destination: "https://eu.i.posthog.com/decide",
-      },
-    ];
-  },
-  // Support PostHog trailing slash API requests
-  skipTrailingSlashRedirect: true,
 };
 
 export default config;
