@@ -7,12 +7,12 @@ import { eq } from "drizzle-orm";
 export const QUERIES = {
   //you dont have to async/await if you are returning a promise
   getFolders: function(folderId: number) {
-    return db.select().from(folders_table).where(eq(folders_table.parent, folderId))
+    return db.select().from(folders_table).where(eq(folders_table.parent, folderId)).orderBy(folders_table.id)
   },
 
 
   getFiles: function(folderId: number) {
-    return db.select().from(files_table).where(eq(files_table.parent, folderId))
+    return db.select().from(files_table).where(eq(files_table.parent, folderId)).orderBy(files_table.id)
   },
 
   getAllParentsForFolder: async function(folderId: number) {
