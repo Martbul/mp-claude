@@ -2,7 +2,7 @@ import "server-only";
 
 import { files_table, folders_table, type DB_FileType } from "~/server/db/schema";
 import { db } from "~/server/db";
-import { eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 
 export const QUERIES = {
   //you dont have to async/await if you are returning a promise
@@ -35,7 +35,13 @@ export const QUERIES = {
   getFolderById: async function(folderId: number) {
     const folder = await db.select().from(folders_table).where(eq(folders_table.id, folderId));
     return folder[0]
-  }
+  },
+  getRootFolderForUser: async function(userId: string) {
+    const folder = await db.select().from(folders_table).where(and(eq(folders_table.ownerId, userId), isNull(folders_table.parent)))
+    return folder[0]
+  },
+
+
 
 }
 
@@ -52,5 +58,39 @@ export const MUTATIONS = {
   }) {
     return await db.insert(files_table).values({ ...input.file, ownerId: input.userId })
 
+  },
+
+  onboardUser: async function(userId: string) {
+    const rootFolder = await db.insert(folders_table).values({
+      name: "Root",
+      parent: null,
+      ownerId: userId
+    }).$returningId();
+
+    const rootFolderId = rootFolder[0]!.id;
+
+    await db.insert(folders_table).values([{
+      name: "Trash",
+      parent: rootFolderId,
+      ownerId: userId,
+    },
+    {
+      name: "Shared",
+      parent: rootFolderId,
+      ownerId: userId,
+    },
+    {
+      name: "Documents",
+      parent: rootFolderId,
+      ownerId: userId,
+    },
+    {
+      name: "Images",
+      parent: rootFolderId,
+      ownerId: userId,
+    }
+    ])
+
+    return rootFolder;
   }
 }

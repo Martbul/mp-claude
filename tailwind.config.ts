@@ -7,7 +7,7 @@ import animate from "tailwindcss-animate";
 
 export default withUt({
   darkMode: "class",
-  content: ["./src/**/*.tsx"],
+  content: ["./**/*.{ts,tsx}"],
   theme: {
     extend: {
       fontFamily: {
