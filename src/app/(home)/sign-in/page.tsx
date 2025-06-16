@@ -1,9 +1,16 @@
 import { SignInButton } from "@clerk/nextjs";
+import { auth } from "@clerk/nextjs/server";
+import { redirect } from 'next/navigation';
+export default async function SignInPage() {
 
-export default function HomePage() {
+
+  const user = await auth();
+  if (user) {
+    redirect('/workspace');
+  }
   return (
     <>
-      <SignInButton forceRedirectUrl={"/claude"} />
+      <SignInButton forceRedirectUrl={"/workspace"} />
       <footer className="mt-16 text-sm text-neutral-500">
         © {new Date().getFullYear()} T3 Drive. All rights reserved.
       </footer>
