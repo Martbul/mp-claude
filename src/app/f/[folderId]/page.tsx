@@ -14,7 +14,7 @@ export default async function MPClaude(props: { params: Promise<{ folderId: stri
 		QUERIES.getFiles(parsedFolderId),
 		QUERIES.getAllParentsForFolder(parsedFolderId)]) //this lets us remove the await from the folder and fles constants meaning that it wont bloack waithing for the first one to finish
 	//now both fetching happens at the same time in paralell
-	return <ClaudeContents files={files} folders={folders} parents={parents} />
+	return <ClaudeContents files={files} folders={folders} parents={parents} currentFolderId={parsedFolderId} />
 
 }
 

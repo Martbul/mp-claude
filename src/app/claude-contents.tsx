@@ -11,7 +11,8 @@ import { useRouter } from "next/navigation"
 export default function ClaudeContents(props: {
   files: (typeof files_table.$inferSelect)[];
   folders: (typeof folders_table.$inferSelect)[]; //$inferSelect lets you infer from the actal definition from the table
-  parents: (typeof folders_table.$inferSelect)[]
+  parents: (typeof folders_table.$inferSelect)[];
+  currentFolderId: number;
 }) {
 
   const navigate = useRouter()
@@ -26,7 +27,7 @@ export default function ClaudeContents(props: {
             >
               My Claude
             </Link>
-            {props.parents.map((folder, index) => (
+            {props.parents.map((folder) => (
               <div key={folder.id} className="flex items-center">
                 <ChevronRight className="mx-2 text-gray-500" size={16} />
                 <Link
@@ -67,7 +68,7 @@ export default function ClaudeContents(props: {
         </div>
         <UploadButton endpoint="imageUploader" onClientUploadComplete={() => {
           navigate.refresh()
-        }} />
+        }} input={{ folderId: props.currentFolderId }} />
       </div>
     </div>
   )
