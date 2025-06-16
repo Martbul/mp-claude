@@ -1,5 +1,5 @@
-import ClaudeContents from "~/app/claude-contents";
 import { QUERIES } from "~/server/db/queries";
+import ClaudeContents from "./claude-contents";
 
 export default async function MPClaude(props: { params: Promise<{ folderId: string }> }) {
 	const params = await props.params
