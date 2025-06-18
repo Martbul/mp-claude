@@ -1,3 +1,5 @@
+"use client"
+
 import { Separator } from "@radix-ui/react-separator"
 import {
   BookOpen,
@@ -10,6 +12,8 @@ import {
   Plus,
   Bell,
 } from "lucide-react"
+import Link from "next/link"
+import { useState } from "react"
 import { Breadcrumb, BreadcrumbItem, BreadcrumbList, BreadcrumbPage } from "~/components/ui/breadcrumb"
 import { Button } from "~/components/ui/button"
 
@@ -17,41 +21,57 @@ import { Label } from "~/components/ui/label"
 import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarHeader, SidebarInput, SidebarInset, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarProvider, SidebarRail, SidebarTrigger } from "~/components/ui/sidebar"
 
 
-const navigationItems = [
-  {
-    title: "Dashboard",
-    url: "/workspace",
-    icon: Home,
-    isActive: true,
-  },
-  {
-    title: "Documents",
-    url: "workspace/documents",
-    icon: FileText,
-  },
-  {
-    title: "Notes",
-    url: "workspace/notes",
-    icon: BookOpen,
-  },
-  {
-    title: "AI Assistant",
-    url: "/workspace/ai",
-    icon: Brain,
-  },
-  {
-    title: "Calendar",
-    url: "/workspace/calendar",
-    icon: Calendar,
-  },
-  {
-    title: "Settings",
-    url: "/workspace/settings",
-    icon: Settings,
-  },
-]
 
 export default function WorkspaceLayout(props: { children: React.ReactNode }) {
+
+
+
+  function changeActiveMenuItem(title: string) {
+    setNavigationItems((prevItems) =>
+      prevItems.map((item) => ({
+        ...item,
+        isActive: item.title === title,
+      }))
+    );
+  }
+  const [navigationItems, setNavigationItems] = useState([
+    {
+      title: "Dashboard",
+      url: "/workspace",
+      icon: Home,
+      isActive: true,
+    },
+    {
+      title: "Documents",
+      url: "/workspace/documents",
+      icon: FileText,
+      isActive: false,
+    },
+    {
+      title: "Notes",
+      url: "/workspace/notes",
+      icon: BookOpen,
+      isActive: false,
+    },
+    {
+      title: "AI Assistant",
+      url: "/workspace/ai",
+      icon: Brain,
+      isActive: false,
+    },
+    {
+      title: "Calendar",
+      url: "/workspace/calendar",
+      icon: Calendar,
+      isActive: false,
+    },
+    {
+      title: "Settings",
+      url: "/workspace/settings",
+      icon: Settings,
+      isActive: false,
+    },
+  ]);
   return (
     <SidebarProvider>
       <Sidebar>
@@ -92,10 +112,10 @@ export default function WorkspaceLayout(props: { children: React.ReactNode }) {
                 {navigationItems.map((item) => (
                   <SidebarMenuItem key={item.title}>
                     <SidebarMenuButton asChild isActive={item.isActive}>
-                      <a href={item.url}>
+                      <Link href={item.url} onClick={() => changeActiveMenuItem(item.title)}>
                         <item.icon />
                         <span>{item.title}</span>
-                      </a>
+                      </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                 ))}

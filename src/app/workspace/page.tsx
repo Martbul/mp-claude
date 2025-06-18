@@ -1,4 +1,4 @@
-import { auth } from "@clerk/nextjs/server"
+import { auth, currentUser } from "@clerk/nextjs/server"
 import {
   FileText,
   Brain,
@@ -38,12 +38,14 @@ export default async function StudyDashboard() {
   if (!user) {
     redirect('/sign-in');
   }
+
+  const currUser = await currentUser()
   return (
     <SidebarInset>
       <div className="flex flex-1 flex-col gap-4 p-4">
         {/* Welcome Section */}
         <div className="rounded-lg bg-gradient-to-r from-blue-500 to-purple-600 p-6 text-white">
-          <h1 className="text-2xl font-bold">Welcome back, {user.orgSlug}!</h1>
+          <h1 className="text-2xl font-bold">Welcome back, {currUser?.fullName}!</h1>
           <p className="mt-2 opacity-90">You have 3 upcoming exams this month. Stay focused!</p>
         </div>
 
