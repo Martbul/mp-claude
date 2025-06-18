@@ -1,6 +1,4 @@
-"use client"
-
-import { Separator } from "@radix-ui/react-separator"
+import { auth } from "@clerk/nextjs/server"
 import {
   FileText,
   Brain,
@@ -8,14 +6,13 @@ import {
   Clock,
   Target,
   TrendingUp,
-  Bell,
 } from "lucide-react"
-import { Breadcrumb, BreadcrumbItem, BreadcrumbList, BreadcrumbPage } from "~/components/ui/breadcrumb"
+import { redirect } from "next/navigation"
 
 import { Button } from "~/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/components/ui/card"
 import { Progress } from "~/components/ui/progress"
-import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarHeader, SidebarInput, SidebarInset, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarProvider, SidebarRail, SidebarTrigger } from "~/components/ui/sidebar"
+import { SidebarInset } from "~/components/ui/sidebar"
 const upcomingDeadlines = [
   { subject: "Mathematics", exam: "Calculus Final", date: "2024-01-15", daysLeft: 3 },
   { subject: "Physics", exam: "Quantum Mechanics", date: "2024-01-20", daysLeft: 8 },
@@ -35,13 +32,18 @@ const studyStats = [
   { label: "Study Hours", value: 87, change: "+15%" },
 ]
 
-export default function StudyDashboard() {
+export default async function StudyDashboard() {
+
+  const user = await auth();
+  if (!user) {
+    redirect('/sign-in');
+  }
   return (
     <SidebarInset>
       <div className="flex flex-1 flex-col gap-4 p-4">
         {/* Welcome Section */}
         <div className="rounded-lg bg-gradient-to-r from-blue-500 to-purple-600 p-6 text-white">
-          <h1 className="text-2xl font-bold">Welcome back, Student!</h1>
+          <h1 className="text-2xl font-bold">Welcome back, {user.orgSlug}!</h1>
           <p className="mt-2 opacity-90">You have 3 upcoming exams this month. Stay focused!</p>
         </div>
 
