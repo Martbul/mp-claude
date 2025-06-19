@@ -90,6 +90,7 @@ export const notes_table = createTable("notes_table", {
   index("updated_at_index").on(t.updatedAt),
 ])
 
+export type DB_NoteType = typeof notes_table.$inferSelect
 
 export const calendar_events_table = createTable("calendar_events_table", {
   id: bigint("id", { mode: "number", unsigned: true }).primaryKey().autoincrement(),
