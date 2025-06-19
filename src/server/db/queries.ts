@@ -1,8 +1,8 @@
 import "server-only";
 
-import { files_table, folders_table, type DB_FileType } from "~/server/db/schema";
+import { calendar_events_table, documents_table, files_table, folders_table, notes_table, type DB_FileType } from "~/server/db/schema";
 import { db } from "~/server/db";
-import { and, eq, isNull } from "drizzle-orm";
+import { and, desc, eq, isNull } from "drizzle-orm";
 
 export const QUERIES = {
   //you dont have to async/await if you are returning a promise
@@ -39,6 +39,33 @@ export const QUERIES = {
   getRootFolderForUser: async function(userId: string) {
     const folder = await db.select().from(folders_table).where(and(eq(folders_table.ownerId, userId), isNull(folders_table.parent)))
     return folder[0]
+  },
+
+
+  getDocuments: async function(userId: string) {
+    const documents = await db.select().from(documents_table).where(eq(documents_table.ownerId, userId))
+    return documents[0]
+  },
+  getMax5Documents: async function(userId: string) {
+    const documents = await db
+      .select()
+      .from(documents_table)
+      .where(eq(documents_table.ownerId, userId))
+      .orderBy(desc(documents_table.dateCreated))
+      .limit(5);
+
+    return documents;
+  },
+
+  getCalEvents: async function(userId: string) {
+    const calEvents = await db.select().from(calendar_events_table).where(eq(calendar_events_table.ownerId, userId))
+    return calEvents[0]
+  },
+
+
+  getNotes: async function(userId: string) {
+    const notes = await db.select().from(notes_table).where(eq(notes_table.ownerId, userId))
+    return notes[0]
   },
 
 

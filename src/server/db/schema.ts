@@ -60,7 +60,7 @@ export const notes_table = createTable("notes_table", {
   title: text("title").notNull(),
   content: text("content").notNull(),
   excerpt: text("excerpt").notNull(),
-  category: text("category").notNull(),
+  category: text("category"),
   tags: json("tags").notNull(),
   color: text("color").notNull(),
   isPinned: boolean("is_pinned").notNull().default(false),
@@ -209,6 +209,7 @@ export const documents_table = createTable("documents_table", {
   name: text("name").notNull(),
   type: text("type").notNull(), // e.g., pdf, docx, etc.
   size: int("size").notNull(),
+  ownerId: text("owner_id").notNull(),
 
   dateCreated: timestamp("date_created").notNull().defaultNow(),
   dateModified: timestamp("date_modified").notNull().defaultNow(),
@@ -223,7 +224,6 @@ export const documents_table = createTable("documents_table", {
   thumbnail: text("thumbnail"),
   description: text("description"),
 
-  author: text("author").notNull(),
   version: int("version").notNull().default(1),
 
   downloadCount: int("download_count").notNull().default(0),
@@ -246,7 +246,7 @@ export const documents_table = createTable("documents_table", {
   (t) => {
     return [
       index("path_index").on(t.path),
-      index("author_index").on(t.author),
+      index("author_index").on(t.ownerId),
       index("status_index").on(t.status),
       index("category_index").on(t.category),
     ]

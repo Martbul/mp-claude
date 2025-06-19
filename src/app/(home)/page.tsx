@@ -3,8 +3,10 @@
 //"use server"  allows a functon that is defined on the server to be used in the client
 //
 //cause this is a server component every child that i has that is not expicitly said to be a client component will become a server component
+import { auth } from "@clerk/nextjs/server"
 import { ArrowRight, BookOpen, Brain, Calendar, FileText, Star } from "lucide-react"
 import Link from "next/link"
+import { redirect } from "next/navigation"
 import { Badge } from "~/components/ui/badge"
 import { Button } from "~/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/components/ui/card"
@@ -60,7 +62,13 @@ const stats = [
   { value: "4.9/5", label: "User Rating" },
 ]
 
-export default function HomePage() {
+export default async function HomePage() {
+
+  const user = await auth();
+  if (user) {
+    redirect('/workspace');
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
       {/* Header */}

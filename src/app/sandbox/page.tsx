@@ -1,6 +1,6 @@
 import { db } from "~/server/db"
-import { mockFolders, mockFiles } from "~/lib/mock-data"
-import { files_table, folders_table } from "~/server/db/schema";
+import { mockFolders, mockFiles, mockNotes, mockCalendarEvents, mockDocuments, mockSettings } from "~/lib/mock-data"
+import { calendar_events_table, documents_table, files_table, folders_table, notes_table, settings_table } from "~/server/db/schema";
 
 import { eq, sql } from "drizzle-orm";
 import { auth } from "@clerk/nextjs/server";
@@ -29,22 +29,30 @@ export default async function SandboxPage() {
           throw new Error("user npt found")
         }
 
-        const rootFolder = await db.insert(folders_table).values({
-          name: "root",
+        ///const rootFolder = await db.insert(folders_table).values({
+        // name: "root",
+        //ownerId: user.userId,
+        //parent: null
+
+        //}).$returningId()
+
+
+        // const insertableFolders = mockFolders.map((folder) => ({
+        //name: folder.name,
+        // parent: rootFolder[0]!.id,
+        // ownerId: user.userId,
+
+        // }))
+
+        // await db.insert(folders_table).values(insertableFolders)
+
+        const insertableCal = mockNotes.map((call) => ({
+          ...call,
           ownerId: user.userId,
-          parent: null
-
-        }).$returningId()
-
-
-        const insertableFolders = mockFolders.map((folder) => ({
-          name: folder.name,
-          parent: rootFolder[0]!.id,
-          ownerId: user.userId,
-
         }))
 
-        await db.insert(folders_table).values(insertableFolders)
+
+        await db.insert(notes_table).values(insertableCal)
 
 
 

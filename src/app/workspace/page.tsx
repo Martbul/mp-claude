@@ -8,11 +8,13 @@ import {
   TrendingUp,
 } from "lucide-react"
 import { redirect } from "next/navigation"
+import { cache } from "react"
 
 import { Button } from "~/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/components/ui/card"
 import { Progress } from "~/components/ui/progress"
 import { SidebarInset } from "~/components/ui/sidebar"
+import { QUERIES } from "~/server/db/queries"
 const upcomingDeadlines = [
   { subject: "Mathematics", exam: "Calculus Final", date: "2024-01-15", daysLeft: 3 },
   { subject: "Physics", exam: "Quantum Mechanics", date: "2024-01-20", daysLeft: 8 },
@@ -40,6 +42,19 @@ export default async function StudyDashboard() {
   }
 
   const currUser = await currentUser()
+
+
+
+
+
+  const getUserData = cache(async (userId: string) => {
+    return Promise.all([
+      QUERIES.getMax5Documents(userId),
+      QUERIES.getCalEvents(userId),
+      QUERIES.getNotes(userId)
+    ])
+  })
+
   return (
     <SidebarInset>
       <div className="flex flex-1 flex-col gap-4 p-4">
