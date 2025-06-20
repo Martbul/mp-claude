@@ -1,6 +1,6 @@
 import "server-only";
 
-import { calendar_events_table, documents_table, files_table, folders_table, notes_table, type DB_FileType } from "~/server/db/schema";
+import { calendar_events_table, DB_NoteType, documents_table, files_table, folders_table, notes_table, type DB_FileType } from "~/server/db/schema";
 import { db } from "~/server/db";
 import { and, desc, eq, isNull } from "drizzle-orm";
 
@@ -65,7 +65,7 @@ export const QUERIES = {
 
   getNotes: async function(userId: string) {
     const notes = await db.select().from(notes_table).where(eq(notes_table.ownerId, userId))
-    return notes[0]
+    return notes
   },
 
 
@@ -119,5 +119,11 @@ export const MUTATIONS = {
     ])
 
     return rootFolder;
-  }
+  },
+
+  createNewNote: async function(noteData: DB_NoteType) {
+    await db.insert(notes_table).values(noteData)
+  },
+
+
 }

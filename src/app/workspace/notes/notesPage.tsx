@@ -139,18 +139,15 @@ const noteTemplates: NoteTemplate[] = [
   },
 ]
 
-export default function NotesPage(props: { notes: DB_NoteType[], userId: string }) {
-
-
-
-  const [notes, setNotes] = useState<DB_NoteType[]>(props.notes)
+export default function NotesPage(props: { notes: DB_NoteType[], userId: string, CreateNoteButton: any }) {
+  const [notes, setNotes] = useState<DB_NoteType[]>(Array.isArray(props.notes) ? props.notes : [])
   const [folders, setFolders] = useState<NoteFolder[]>(sampleFolders)
   const [viewMode, setViewMode] = useState<ViewMode>("grid")
   const [sortBy, setSortBy] = useState<SortBy>("updated")
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc")
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedCategory, setSelectedCategory] = useState("all")
-  const [selectedFolder, setSelectedFolder] = useState<number | null>(null)
+  const [selectedFolder, setSelectedFolder] = useState<string | null>(null)
   const [selectedNotes, setSelectedNotes] = useState<number[]>([])
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
   const [selectedNote, setSelectedNote] = useState<DB_NoteType | null>(null)
@@ -168,10 +165,12 @@ export default function NotesPage(props: { notes: DB_NoteType[], userId: string 
   // Filter and sort notes
   const filteredAndSortedNotes = useMemo(() => {
     const filtered = notes.filter((note) => {
+      const noteTagsArray = Array.isArray(note.tags) ? note.tags : []
+
       const matchesSearch =
         note.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
         note.content.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        // note.tags.some((tag) => tag.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        noteTagsArray.some((tag: string) => tag.toLowerCase().includes(searchTerm.toLowerCase())) ||
         note.excerpt.toLowerCase().includes(searchTerm.toLowerCase())
 
       const matchesCategory = selectedCategory === "all" || note.category === selectedCategory
@@ -194,7 +193,7 @@ export default function NotesPage(props: { notes: DB_NoteType[], userId: string 
           comparison = a.title.localeCompare(b.title)
           break
         case "category":
-          comparison = a.category.localeCompare(b.category)
+          comparison = (a.category || "").localeCompare(b.category || "")
           break
         case "wordcount":
           comparison = a.wordCount - b.wordCount
@@ -206,10 +205,10 @@ export default function NotesPage(props: { notes: DB_NoteType[], userId: string 
   }, [notes, searchTerm, selectedCategory, selectedFolder, sortBy, sortOrder])
 
   // Get unique categories
-  const categories = Array.from(new Set(notes.map((note) => note.category)))
+  const categories = Array.from(new Set(notes.map((note) => note.category).filter(Boolean)))
 
   // Toggle note selection
-  const toggleNoteSelection = (noteId: string) => {
+  const toggleNoteSelection = (noteId: number) => {
     setSelectedNotes((prev) => (prev.includes(noteId) ? prev.filter((id) => id !== noteId) : [...prev, noteId]))
   }
 
@@ -235,6 +234,7 @@ export default function NotesPage(props: { notes: DB_NoteType[], userId: string 
   // Create new note
   const createNote = () => {
     const note: DB_NoteType = {
+      id: Date.now(), // Temporary ID - in real app, this would be handled by the database
       title: newNote.title || "Untitled Note",
       ownerId: props.userId,
       content: newNote.content,
@@ -252,14 +252,16 @@ export default function NotesPage(props: { notes: DB_NoteType[], userId: string 
       readingTime: Math.ceil(newNote.content.split(" ").length / 200),
       priority: newNote.priority,
       status: "draft",
+      template: null,
       linkedNotes: [],
       attachments: [],
       collaborators: [],
       aiGenerated: false,
+      aiSummary: null,
       version: 1,
       isShared: false,
       viewCount: 0,
-      folder: newNote.folder,
+      folder: newNote.folder || null,
     }
 
     setNotes((prev) => [...prev, note])
@@ -507,29 +509,32 @@ export default function NotesPage(props: { notes: DB_NoteType[], userId: string 
               </div>
 
               <div className="space-y-2">
-                {group.notes.slice(0, 5).map((note) => (
-                  <Card key={note.id} className="p-3 hover:shadow-md transition-all cursor-pointer">
-                    <div className="flex items-center gap-3">
-                      <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: note.color }} />
-                      <div className="flex-1 min-w-0">
-                        <h4 className="font-medium text-sm truncate">{note.title}</h4>
-                        <div className="flex items-center gap-2 text-xs text-gray-500">
-                          <span>{note.wordCount} words</span>
-                          {note.linkedNotes.length > 0 && (
-                            <span className="flex items-center gap-1">
-                              <LinkIcon className="w-3 h-3" />
-                              {note.linkedNotes.length}
-                            </span>
-                          )}
+                {group.notes.slice(0, 5).map((note) => {
+                  const linkedNotesArray = Array.isArray(note.linkedNotes) ? note.linkedNotes : []
+                  return (
+                    <Card key={note.id} className="p-3 hover:shadow-md transition-all cursor-pointer">
+                      <div className="flex items-center gap-3">
+                        <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: note.color }} />
+                        <div className="flex-1 min-w-0">
+                          <h4 className="font-medium text-sm truncate">{note.title}</h4>
+                          <div className="flex items-center gap-2 text-xs text-gray-500">
+                            <span>{note.wordCount} words</span>
+                            {linkedNotesArray.length > 0 && (
+                              <span className="flex items-center gap-1">
+                                <LinkIcon className="w-3 h-3" />
+                                {linkedNotesArray.length}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          {note.isPinned && <Pin className="w-3 h-3 text-gray-600" />}
+                          {note.isStarred && <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" />}
                         </div>
                       </div>
-                      <div className="flex items-center gap-1">
-                        {note.isPinned && <Pin className="w-3 h-3 text-gray-600" />}
-                        {note.isStarred && <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" />}
-                      </div>
-                    </div>
-                  </Card>
-                ))}
+                    </Card>
+                  )
+                })}
                 {group.notes.length > 5 && (
                   <div className="text-center text-sm text-gray-500">+{group.notes.length - 5} more notes</div>
                 )}
@@ -541,123 +546,131 @@ export default function NotesPage(props: { notes: DB_NoteType[], userId: string 
     )
   }
 
+
   // Note Card Component
-  const NoteCard = ({ note, isPinned = false }: { note: DB_NoteType; isPinned?: boolean }) => (
-    <Card
-      className={`group hover:shadow-lg transition-all cursor-pointer ${selectedNotes.includes(note.id) ? "ring-2 ring-blue-500" : ""
-        } ${isPinned ? "border-yellow-200 bg-yellow-50/30" : ""}`}
-      style={{ backgroundColor: note.color }}
-      onClick={() => setSelectedNote(note)}
-    >
-      <CardHeader className="pb-2">
-        <div className="flex items-start justify-between">
-          <div className="flex-1 min-w-0 space-y-1">
-            <div className="flex items-center gap-2">
-              {isPinned && <Pin className="w-4 h-4 text-yellow-600" />}
-              <h3 className="font-medium text-sm truncate">{note.title}</h3>
+  const NoteCard = ({ note, isPinned = false }: { note: DB_NoteType; isPinned?: boolean }) => {
+    const noteTagsArray = Array.isArray(note.tags) ? note.tags : []
+
+    return (
+      <Card
+        className={`group hover:shadow-lg transition-all cursor-pointer ${selectedNotes.includes(note.id) ? "ring-2 ring-blue-500" : ""
+          } ${isPinned ? "border-yellow-200 bg-yellow-50/30" : ""}`}
+        style={{ backgroundColor: note.color }}
+        onClick={() => setSelectedNote(note)}
+      >
+        <CardHeader className="pb-2">
+          <div className="flex items-start justify-between">
+            <div className="flex-1 min-w-0 space-y-1">
+              <div className="flex items-center gap-2">
+                {isPinned && <Pin className="w-4 h-4 text-yellow-600" />}
+                <h3 className="font-medium text-sm truncate">{note.title}</h3>
+              </div>
+              <div className="flex items-center gap-2">
+                <Badge variant="outline" className="text-xs">
+                  {note.category}
+                </Badge>
+                {note.aiGenerated && (
+                  <Badge variant="secondary" className="text-xs">
+                    <Brain className="w-3 h-3 mr-1" />
+                    AI
+                  </Badge>
+                )}
+              </div>
             </div>
-            <div className="flex items-center gap-2">
-              <Badge variant="outline" className="text-xs">
-                {note.category}
-              </Badge>
-              {note.aiGenerated && (
-                <Badge variant="secondary" className="text-xs">
-                  <Brain className="w-3 h-3 mr-1" />
-                  AI
+            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  toggleNoteStarred(note.id)
+                }}
+              >
+                <Star className={`w-4 h-4 ${note.isStarred ? "fill-yellow-400 text-yellow-400" : ""}`} />
+              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                  <Button variant="ghost" size="sm">
+                    <MoreHorizontal className="w-4 h-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent>
+                  <DropdownMenuItem onClick={() => toggleNotePinned(note.id)}>
+                    <Pin className="w-4 h-4 mr-2" />
+                    {note.isPinned ? "Unpin" : "Pin"}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => toggleNoteBookmarked(note.id)}>
+                    <Bookmark className="w-4 h-4 mr-2" />
+                    {note.isBookmarked ? "Remove Bookmark" : "Bookmark"}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem>
+                    <Share className="w-4 h-4 mr-2" />
+                    Share
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => deleteNote(note.id)}>
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    Delete
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="pt-0">
+          <div className="space-y-3">
+            <p className="text-sm text-gray-700 line-clamp-3">{note.excerpt}</p>
+
+            <div className="flex flex-wrap gap-1">
+              {noteTagsArray.slice(0, 3).map((tag: string) => (
+                <Badge key={tag} variant="outline" className="text-xs">
+                  #{tag}
+                </Badge>
+              ))}
+              {noteTagsArray.length > 3 && (
+                <Badge variant="outline" className="text-xs">
+                  +{noteTagsArray.length - 3}
                 </Badge>
               )}
             </div>
-          </div>
-          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={(e) => {
-                e.stopPropagation()
-                toggleNoteStarred(note.id)
-              }}
-            >
-              <Star className={`w-4 h-4 ${note.isStarred ? "fill-yellow-400 text-yellow-400" : ""}`} />
-            </Button>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                <Button variant="ghost" size="sm">
-                  <MoreHorizontal className="w-4 h-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent>
-                <DropdownMenuItem onClick={() => toggleNotePinned(note.id)}>
-                  <Pin className="w-4 h-4 mr-2" />
-                  {note.isPinned ? "Unpin" : "Pin"}
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => toggleNoteBookmarked(note.id)}>
-                  <Bookmark className="w-4 h-4 mr-2" />
-                  {note.isBookmarked ? "Remove Bookmark" : "Bookmark"}
-                </DropdownMenuItem>
-                <DropdownMenuItem>
-                  <Share className="w-4 h-4 mr-2" />
-                  Share
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => deleteNote(note.id)}>
-                  <Trash2 className="w-4 h-4 mr-2" />
-                  Delete
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-        </div>
-      </CardHeader>
-      <CardContent className="pt-0">
-        <div className="space-y-3">
-          <p className="text-sm text-gray-700 line-clamp-3">{note.excerpt}</p>
 
-          <div className="flex flex-wrap gap-1">
-            {note.tags.slice(0, 3).map((tag) => (
-              <Badge key={tag} variant="outline" className="text-xs">
-                #{tag}
+            <div className="flex items-center justify-between text-xs text-gray-600">
+              <div className="flex items-center gap-3">
+                <span>{note.wordCount} words</span>
+                <span>{note.readingTime}min read</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <Clock className="w-3 h-3" />
+                {note.updatedAt.toLocaleDateString()}
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1">
+                {note.isBookmarked && <Bookmark className="w-4 h-4 text-blue-600" />}
+                {note.isShared && <Share className="w-4 h-4 text-green-600" />}
+                {Array.isArray(note.linkedNotes) && note.linkedNotes.length > 0 && (
+                  <span className="flex items-center gap-1 text-xs text-gray-500">
+                    <LinkIcon className="w-3 h-3" />
+                    {note.linkedNotes.length}
+                  </span>
+                )}
+              </div>
+              <Badge
+                variant={note.priority === "high" ? "destructive" : note.priority === "medium" ? "default" : "secondary"}
+                className="text-xs"
+              >
+                {note.priority}
               </Badge>
-            ))}
-            {note.tags.length > 3 && (
-              <Badge variant="outline" className="text-xs">
-                +{note.tags.length - 3}
-              </Badge>
-            )}
+            </div>
           </div>
+        </CardContent>
+      </Card>
+    )
+  }
 
-          <div className="flex items-center justify-between text-xs text-gray-600">
-            <div className="flex items-center gap-3">
-              <span>{note.wordCount} words</span>
-              <span>{note.readingTime}min read</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <Clock className="w-3 h-3" />
-              {note.updatedAt.toLocaleDateString()}
-            </div>
-          </div>
-
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-1">
-              {note.isBookmarked && <Bookmark className="w-4 h-4 text-blue-600" />}
-              {note.isShared && <Share className="w-4 h-4 text-green-600" />}
-              {note.linkedNotes.length > 0 && (
-                <span className="flex items-center gap-1 text-xs text-gray-500">
-                  <LinkIcon className="w-3 h-3" />
-                  {note.linkedNotes.length}
-                </span>
-              )}
-            </div>
-            <Badge
-              variant={note.priority === "high" ? "destructive" : note.priority === "medium" ? "default" : "secondary"}
-              className="text-xs"
-            >
-              {note.priority}
-            </Badge>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  )
+  const selectedNoteTags = Array.isArray(selectedNote?.tags) ? selectedNote.tags : []
+  const selectedLinkedNotesArray = Array.isArray(selectedNote?.linkedNotes) ? selectedNote.linkedNotes : []
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">
@@ -719,7 +732,7 @@ export default function NotesPage(props: { notes: DB_NoteType[], userId: string 
                             </SelectTrigger>
                             <SelectContent>
                               {categories.map((category) => (
-                                <SelectItem key={category} value={category}>
+                                <SelectItem key={category} value={category!}>
                                   {category}
                                 </SelectItem>
                               ))}
@@ -774,7 +787,11 @@ export default function NotesPage(props: { notes: DB_NoteType[], userId: string 
                       <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
                         Cancel
                       </Button>
-                      <Button onClick={createNote}>Create Note</Button>
+                      <Button onClick={createNote}>
+
+                        <CreateNoteButton newNote={newNote} userId={props.userId}>Create Note</CreateNoteButton>
+
+                      </Button>
                     </div>
                   </TabsContent>
                   <TabsContent value="template" className="space-y-4">
@@ -1096,6 +1113,7 @@ export default function NotesPage(props: { notes: DB_NoteType[], userId: string 
 
         {/* Note Details Modal */}
         {selectedNote && (
+
           <Dialog open={!!selectedNote} onOpenChange={() => setSelectedNote(null)}>
             <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
               <DialogHeader>
@@ -1128,12 +1146,27 @@ export default function NotesPage(props: { notes: DB_NoteType[], userId: string 
                 </div>
 
                 <div className="flex flex-wrap gap-2">
-                  {selectedNote.tags.map((tag) => (
+                  {selectedNoteTags.map((tag) => (
                     <Badge key={tag} variant="outline">
                       #{tag}
                     </Badge>
                   ))}
                 </div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
                 <div className="prose max-w-none">
                   <div className="whitespace-pre-wrap">{selectedNote.content}</div>
@@ -1153,7 +1186,7 @@ export default function NotesPage(props: { notes: DB_NoteType[], userId: string 
                   </Card>
                 )}
 
-                {selectedNote.linkedNotes.length > 0 && (
+                {selectedLinkedNotesArray.length > 0 && (
                   <Card>
                     <CardHeader>
                       <CardTitle className="text-lg flex items-center gap-2">
@@ -1163,7 +1196,7 @@ export default function NotesPage(props: { notes: DB_NoteType[], userId: string 
                     </CardHeader>
                     <CardContent>
                       <div className="space-y-2">
-                        {selectedNote.linkedNotes.map((linkedId) => {
+                        {selectedLinkedNotesArray.map((linkedId) => {
                           const linkedNote = notes.find((n) => n.id === linkedId)
                           return linkedNote ? (
                             <div key={linkedId} className="flex items-center gap-2 p-2 bg-gray-50 rounded">
