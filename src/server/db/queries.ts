@@ -1,6 +1,6 @@
 import "server-only";
 
-import { calendar_events_table, DB_NoteType, documents_table, files_table, folders_table, notes_table, type DB_FileType } from "~/server/db/schema";
+import { calendar_events_table, type DB_NoteType, documents_table, files_table, folders_table, notes_table, type DB_FileType } from "~/server/db/schema";
 import { db } from "~/server/db";
 import { and, desc, eq, isNull } from "drizzle-orm";
 
@@ -67,9 +67,6 @@ export const QUERIES = {
     const notes = await db.select().from(notes_table).where(eq(notes_table.ownerId, userId))
     return notes
   },
-
-
-
 }
 
 
@@ -120,10 +117,48 @@ export const MUTATIONS = {
 
     return rootFolder;
   },
-
-  createNewNote: async function(noteData: DB_NoteType) {
-    await db.insert(notes_table).values(noteData)
-  },
+  createNewNote: async function(data: {
+    title: string
+    content: string
+    category: string
+    tags: string[]
+    color: string
+    priority: "low" | "medium" | "high"
+    folder: string | null
+    ownerId: string
+  }) {
+    const now = new Date()
+    const wordCount = data.content.trim().split(/\s+/).length
+    await db.insert(notes_table).values({
+      title: data.title || "Untitled Note",
+      content: data.content,
+      excerpt: data.content.slice(0, 150) + "...",
+      category: data.category || null,
+      tags: data.tags,
+      color: data.color,
+      priority: data.priority,
+      folder: data.folder,
+      ownerId: data.ownerId,
+      createdAt: now,
+      updatedAt: now,
+      wordCount,
+      readingTime: Math.ceil(wordCount / 200),
+      isPinned: false,
+      isStarred: false,
+      isBookmarked: false,
+      author: "",
+      status: "draft",
+      template: null,
+      linkedNotes: [],
+      attachments: [],
+      collaborators: [],
+      aiGenerated: false,
+      aiSummary: null,
+      version: 1,
+      isShared: false,
+      viewCount: 0,
+    })
+  }
 
 
 }

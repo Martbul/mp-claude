@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, startTransition } from "react"
 import {
   FileText,
   Plus,
@@ -55,8 +55,8 @@ import {
   DropdownMenuTrigger,
 } from "~/components/ui/dropdown-menu"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs"
-import { DB_NoteType } from "~/server/db/schema"
-
+import type { DB_NoteType } from "~/server/db/schema"
+import { createNote as createNoteAction } from "~/server/actions";
 interface NoteFolder {
   id: string
   name: string
@@ -139,7 +139,7 @@ const noteTemplates: NoteTemplate[] = [
   },
 ]
 
-export default function NotesPage(props: { notes: DB_NoteType[], userId: string, CreateNoteButton: any }) {
+export default function NotesPage(props: { notes: DB_NoteType[], userId: string }) {
   const [notes, setNotes] = useState<DB_NoteType[]>(Array.isArray(props.notes) ? props.notes : [])
   const [folders, setFolders] = useState<NoteFolder[]>(sampleFolders)
   const [viewMode, setViewMode] = useState<ViewMode>("grid")
@@ -193,7 +193,7 @@ export default function NotesPage(props: { notes: DB_NoteType[], userId: string,
           comparison = a.title.localeCompare(b.title)
           break
         case "category":
-          comparison = (a.category || "").localeCompare(b.category || "")
+          comparison = (a.category ?? "").localeCompare(b.category ?? "")
           break
         case "wordcount":
           comparison = a.wordCount - b.wordCount
@@ -231,26 +231,27 @@ export default function NotesPage(props: { notes: DB_NoteType[], userId: string,
     setSelectedNotes((prev) => prev.filter((id) => id !== noteId))
   }
 
-  // Create new note
-  const createNote = () => {
-    const note: DB_NoteType = {
-      id: Date.now(), // Temporary ID - in real app, this would be handled by the database
+  const createNote = async () => {
+    const wordCount = newNote.content.split(" ").filter(word => word.length > 0).length;
+
+    const optimisticNote: DB_NoteType = {
+      id: Date.now(), // Temporary unique ID for optimistic update
       title: newNote.title || "Untitled Note",
       ownerId: props.userId,
       content: newNote.content,
-      excerpt: newNote.content.substring(0, 150) + "...",
+      excerpt: newNote.content.substring(0, 150) + (newNote.content.length > 150 ? "..." : ""),
       category: newNote.category || "Uncategorized",
       tags: newNote.tags,
-      color: newNote.color || "#ffffff",
+      color: newNote.color ?? "#ffffff",
       isPinned: false,
       isStarred: false,
       isBookmarked: false,
       createdAt: new Date(),
       updatedAt: new Date(),
       author: "",
-      wordCount: newNote.content.split(" ").length,
-      readingTime: Math.ceil(newNote.content.split(" ").length / 200),
-      priority: newNote.priority,
+      wordCount,
+      readingTime: Math.ceil(wordCount / 200),
+      priority: newNote.priority ?? "medium",
       status: "draft",
       template: null,
       linkedNotes: [],
@@ -261,10 +262,22 @@ export default function NotesPage(props: { notes: DB_NoteType[], userId: string,
       version: 1,
       isShared: false,
       viewCount: 0,
-      folder: newNote.folder || null,
-    }
+      folder: newNote.folder ?? "",
+    };
 
-    setNotes((prev) => [...prev, note])
+    const noteDataToSave = {
+      title: newNote.title,
+      content: newNote.content,
+      category: newNote.category,
+      tags: newNote.tags,
+      color: newNote.color ?? "#ffffff",
+      priority: newNote.priority,
+      folder: newNote.folder ?? "",
+      ownerId: props.userId,
+    };
+
+    setNotes(prev => [...prev, optimisticNote]);
+
     setNewNote({
       title: "",
       content: "",
@@ -273,9 +286,56 @@ export default function NotesPage(props: { notes: DB_NoteType[], userId: string,
       color: noteColors[0],
       priority: "medium",
       folder: "",
-    })
-    setIsCreateDialogOpen(false)
-  }
+    });
+
+    setIsCreateDialogOpen(false);
+
+    // Ensure proper return type
+    type CreateNoteResult =
+      | { success: true; data: DB_NoteType }
+      | { success: false; error: string };
+
+    try {
+      const result = await createNoteAction(noteDataToSave) as CreateNoteResult;
+      console.log(result)
+      if (result.success && result.data) {
+        setNotes(prev =>
+          prev.map(note =>
+            note.id === optimisticNote.id ? result.data : note
+          )
+        );
+      } else {
+        setNotes(prev => prev.filter(note => note.id !== optimisticNote.id));
+        console.error("Failed to create note");
+        setNewNote({
+          title: noteDataToSave.title,
+          content: noteDataToSave.content,
+          category: noteDataToSave.category,
+          tags: noteDataToSave.tags,
+          color: noteDataToSave.color,
+          priority: noteDataToSave.priority,
+          folder: noteDataToSave.folder,
+        });
+        setIsCreateDialogOpen(true);
+      }
+    } catch (error) {
+      setNotes(prev => prev.filter(note => note.id !== optimisticNote.id));
+      console.error("Failed to create note:", error);
+      setNewNote({
+        title: noteDataToSave.title,
+        content: noteDataToSave.content,
+        category: noteDataToSave.category,
+        tags: noteDataToSave.tags,
+        color: noteDataToSave.color,
+        priority: noteDataToSave.priority,
+        folder: noteDataToSave.folder,
+      });
+      setIsCreateDialogOpen(true);
+    }
+  };
+
+
+
 
   // Render different views
   const renderGridView = () => (
@@ -787,10 +847,9 @@ export default function NotesPage(props: { notes: DB_NoteType[], userId: string,
                       <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
                         Cancel
                       </Button>
-                      <Button onClick={createNote}>
+                      <Button onClick={() => createNote()}>
 
-                        <CreateNoteButton newNote={newNote} userId={props.userId}>Create Note</CreateNoteButton>
-
+                        Create Note
                       </Button>
                     </div>
                   </TabsContent>

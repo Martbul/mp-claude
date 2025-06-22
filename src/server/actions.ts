@@ -1,8 +1,9 @@
 "use server"
 
-import { and, eq } from "drizzle-orm"
+import { and, desc, eq } from "drizzle-orm"
 import { db } from "./db"
-import { files_table } from "./db/schema"
+import { files_table, notes_table } from "./db/schema"
+import type { DB_NoteType } from "./db/schema"
 import { auth } from "@clerk/nextjs/server";
 import { UTApi } from "uploadthing/server";
 import { cookies } from "next/headers";
@@ -39,4 +40,91 @@ export async function deleteFile(fileId: number) {
 
   console.log(dbDeleteResult)
   return { success: true }
+}
+
+
+export async function createNote(noteData: {
+  title: string;
+  content: string;
+  category: string;
+  tags: string[];
+  color: string;
+  priority: "low" | "medium" | "high";
+  folder: string | null;
+  ownerId: string;
+}) {
+  try {
+    const wordCount = noteData.content.trim().split(/\s+/).length;
+
+    const newNote: Omit<DB_NoteType, 'id'> = {
+      title: noteData.title || "Untitled Note",
+      ownerId: noteData.ownerId,
+      content: noteData.content,
+      excerpt: noteData.content.substring(0, 150) + (noteData.content.length > 150 ? "..." : ""),
+      category: noteData.category || "Uncategorized",
+      tags: noteData.tags,
+      color: noteData.color ?? "#ffffff",
+      isPinned: false,
+      isStarred: false,
+      isBookmarked: false,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      author: "", // Could be pulled from session/user if needed
+      wordCount,
+      readingTime: Math.ceil(wordCount / 200),
+      priority: noteData.priority,
+      status: "draft",
+      template: null,
+      linkedNotes: [],
+      attachments: [],
+      collaborators: [],
+      aiGenerated: false,
+      aiSummary: null,
+      version: 1,
+      isShared: false,
+      viewCount: 0,
+      folder: noteData.folder,
+    };
+
+    // Insert into DB without .returning() if using MySQL/SingleStore
+    const creaatedNote = await db.insert(notes_table).values(newNote);
+    // Optionally: query inserted note by last inserted ID if needed
+    // This assumes you have access to LAST_INSERT_ID() or similar behavior
+    // Otherwise just return success without full note details
+    //
+
+
+
+
+
+    const lastUserNote = await db
+      .select()
+      .from(notes_table)
+      .where(eq(notes_table.ownerId, noteData.ownerId)) // userId: string
+      .orderBy(desc(notes_table.createdAt))   // Or use desc(notes_table.id)
+      .limit(1)
+      .then(rows => rows[0]);
+
+
+    return {
+      success: true,
+      data: lastUserNote, // Replace with lookup if you want to return full note
+    };
+  } catch (error) {
+    console.error("Failed to create note:", error);
+    return {
+      success: false,
+      error: "Failed to create note",
+    };
+  }
+}
+
+export async function getNotes(userId: string) {
+  try {
+    const notes = await db.select().from(notes_table).where(eq(notes_table.ownerId, userId));
+    return { success: true, data: notes };
+  } catch (error) {
+    console.error("Failed to fetch notes:", error);
+    return { success: false, error: "Failed to fetch notes" };
+  }
 }
