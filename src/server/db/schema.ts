@@ -92,6 +92,18 @@ export const notes_table = createTable("notes_table", {
 
 export type DB_NoteType = typeof notes_table.$inferSelect
 
+export const note_folders_table = createTable("note_folders_table", {
+  id: text("id").primaryKey(), // e.g., "math-core"
+  name: text("name").notNull(), // e.g., "Core Mathematics"
+  color: text("color").notNull(), // e.g., "#2196F3"
+  noteCount: int("note_count").notNull(), // e.g., 12
+  ownerId: text("owner_id").notNull(), // assuming same as other tables
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (t) => [
+  index("owner_id_index").on(t.ownerId),
+]);
+
+export type DB_NoteFolderType = typeof note_folders_table.$inferSelect;
 export const calendar_events_table = createTable("calendar_events_table", {
   id: bigint("id", { mode: "number", unsigned: true }).primaryKey().autoincrement(),
   ownerId: text("owner_id").notNull(),

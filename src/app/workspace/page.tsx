@@ -14,7 +14,7 @@ import { Button } from "~/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/components/ui/card"
 import { Progress } from "~/components/ui/progress"
 import { SidebarInset } from "~/components/ui/sidebar"
-import { QUERIES } from "~/server/db/queries"
+import { MUTATIONS, QUERIES } from "~/server/db/queries"
 const upcomingDeadlines = [
   { subject: "Mathematics", exam: "Calculus Final", date: "2024-01-15", daysLeft: 3 },
   { subject: "Physics", exam: "Quantum Mechanics", date: "2024-01-20", daysLeft: 8 },
@@ -37,13 +37,26 @@ const studyStats = [
 export default async function StudyDashboard() {
 
   const user = await auth();
-  if (!user) {
+  if (!user.userId) {
     redirect('/sign-in');
   }
 
   const currUser = await currentUser()
+  if (!currUser) {
+    redirect('/sign-in');
+  }
+
+  //INFO: onboardFolder is folder used to signal that the user is not new and it has been onboarded
+  const onboardFolder = await QUERIES.getRootFolderForUser(user.userId);
+
+  if (!onboardFolder) {
+    await MUTATIONS.onboardUser(user.userId);
+
+  }
 
 
+  console.log(user)
+  console.log("ggg")
 
 
 
@@ -178,7 +191,7 @@ export default async function StudyDashboard() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Clock className="h-5 w-5" />
-                Today's Schedule
+                Todays Schedule
               </CardTitle>
               <CardDescription>Your study plan for today</CardDescription>
             </CardHeader>

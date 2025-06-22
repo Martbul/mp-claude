@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo, startTransition } from "react"
+import { useState, useMemo } from "react"
 import {
   FileText,
   Plus,
@@ -13,7 +13,6 @@ import {
   Share,
   Star,
   Tag,
-  Clock,
   Eye,
   Edit,
   Trash2,
@@ -55,16 +54,9 @@ import {
   DropdownMenuTrigger,
 } from "~/components/ui/dropdown-menu"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs"
-import type { DB_NoteType } from "~/server/db/schema"
+import type { DB_NoteFolderType, DB_NoteType } from "~/server/db/schema"
 import { createNote as createNoteAction } from "~/server/actions";
-interface NoteFolder {
-  id: string
-  name: string
-  color: string
-  noteCount: number
-  isExpanded: boolean
-  parentId?: string
-}
+import NoteCard from "./components/NoteCardComponent"
 
 interface NoteTemplate {
   id: string
@@ -90,14 +82,6 @@ const noteColors = [
   "#FCE4EC",
   "#E3F2FD",
   "#F1F8E9",
-]
-const sampleFolders: NoteFolder[] = [
-  { id: "math-core", name: "Core Mathematics", color: "#2196F3", noteCount: 12, isExpanded: true },
-  { id: "physics-advanced", name: "Advanced Physics", color: "#4CAF50", noteCount: 8, isExpanded: false },
-  { id: "chemistry-organic", name: "Organic Chemistry", color: "#FF9800", noteCount: 15, isExpanded: false },
-  { id: "history-modern", name: "Modern History", color: "#9C27B0", noteCount: 6, isExpanded: false },
-  { id: "cs-fundamentals", name: "CS Fundamentals", color: "#00BCD4", noteCount: 22, isExpanded: true },
-  { id: "literature-classic", name: "Classic Literature", color: "#E91E63", noteCount: 9, isExpanded: false },
 ]
 
 const noteTemplates: NoteTemplate[] = [
@@ -139,9 +123,9 @@ const noteTemplates: NoteTemplate[] = [
   },
 ]
 
-export default function NotesPage(props: { notes: DB_NoteType[], userId: string }) {
+export default function NotesPage(props: { notes: DB_NoteType[], notesFolders: DB_NoteFolderType[], userId: string }) {
   const [notes, setNotes] = useState<DB_NoteType[]>(Array.isArray(props.notes) ? props.notes : [])
-  const [folders, setFolders] = useState<NoteFolder[]>(sampleFolders)
+  const [folders, setFolders] = useState<DB_NoteFolderType[]>(Array.isArray(props.notesFolders) ? props.notesFolders : [])
   const [viewMode, setViewMode] = useState<ViewMode>("grid")
   const [sortBy, setSortBy] = useState<SortBy>("updated")
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc")
@@ -262,7 +246,7 @@ export default function NotesPage(props: { notes: DB_NoteType[], userId: string 
       version: 1,
       isShared: false,
       viewCount: 0,
-      folder: newNote.folder ?? "",
+      folder: selectedFolder ?? "",
     };
 
     const noteDataToSave = {
@@ -272,11 +256,23 @@ export default function NotesPage(props: { notes: DB_NoteType[], userId: string 
       tags: newNote.tags,
       color: newNote.color ?? "#ffffff",
       priority: newNote.priority,
-      folder: newNote.folder ?? "",
+      folder: selectedFolder ?? "",
       ownerId: props.userId,
     };
 
     setNotes(prev => [...prev, optimisticNote]);
+
+
+    // Increase folder note count optimistically
+    if (selectedFolder) {
+      setFolders(prev =>
+        prev.map(folder =>
+          folder.id === selectedFolder
+            ? { ...folder, noteCount: (folder.noteCount ?? 0) + 1 }
+            : folder
+        )
+      );
+    }
 
     setNewNote({
       title: "",
@@ -316,6 +312,19 @@ export default function NotesPage(props: { notes: DB_NoteType[], userId: string 
           priority: noteDataToSave.priority,
           folder: noteDataToSave.folder,
         });
+
+
+        // Roll back folder count
+        if (selectedFolder) {
+          setFolders(prev =>
+            prev.map(folder =>
+              folder.id === selectedFolder
+                ? { ...folder, noteCount: Math.max((folder.noteCount ?? 1) - 1, 0) }
+                : folder
+            )
+          );
+        }
+
         setIsCreateDialogOpen(true);
       }
     } catch (error) {
@@ -344,13 +353,32 @@ export default function NotesPage(props: { notes: DB_NoteType[], userId: string 
       {filteredAndSortedNotes
         .filter((note) => note.isPinned)
         .map((note) => (
-          <NoteCard key={`pinned-${note.id}`} note={note} isPinned />
+          <NoteCard key={`pinned-${note.id}`} note={note} isPinned
+            selectedNotes={selectedNotes}
+            setSelectedNote={setSelectedNote}
+            deleteNote={deleteNote}
+            toggleNoteStarred={toggleNoteStarred}
+            toggleNotePinned={toggleNotePinned}
+            toggleNoteBookmarked={toggleNoteBookmarked}
+          />
+
         ))}
       {/* Regular notes */}
       {filteredAndSortedNotes
         .filter((note) => !note.isPinned)
         .map((note) => (
-          <NoteCard key={note.id} note={note} />
+
+          <NoteCard
+            key={note.id}
+            note={note}
+            isPinned={note.isPinned}
+            selectedNotes={selectedNotes}
+            setSelectedNote={setSelectedNote}
+            deleteNote={deleteNote}
+            toggleNoteStarred={toggleNoteStarred}
+            toggleNotePinned={toggleNotePinned}
+            toggleNoteBookmarked={toggleNoteBookmarked}
+          />
         ))}
     </div>
   )
@@ -486,7 +514,7 @@ export default function NotesPage(props: { notes: DB_NoteType[], userId: string 
     const groupedByDate = filteredAndSortedNotes.reduce(
       (acc, note) => {
         const date = note.updatedAt.toDateString()
-        if (!acc[date]) acc[date] = []
+        acc[date] ??= []
         acc[date].push(note)
         return acc
       },
@@ -502,7 +530,7 @@ export default function NotesPage(props: { notes: DB_NoteType[], userId: string 
             </div>
             <div className="mt-4 space-y-4 relative">
               <div className="absolute left-6 top-0 bottom-0 w-0.5 bg-gray-200" />
-              {dayNotes.map((note, index) => (
+              {dayNotes.map((note) => (
                 <div key={note.id} className="relative flex gap-4">
                   <div className="flex-shrink-0 w-12 h-12 bg-white border-2 border-gray-200 rounded-full flex items-center justify-center">
                     <div className="w-6 h-6 rounded-full" style={{ backgroundColor: note.color }} />
@@ -607,127 +635,6 @@ export default function NotesPage(props: { notes: DB_NoteType[], userId: string 
   }
 
 
-  // Note Card Component
-  const NoteCard = ({ note, isPinned = false }: { note: DB_NoteType; isPinned?: boolean }) => {
-    const noteTagsArray = Array.isArray(note.tags) ? note.tags : []
-
-    return (
-      <Card
-        className={`group hover:shadow-lg transition-all cursor-pointer ${selectedNotes.includes(note.id) ? "ring-2 ring-blue-500" : ""
-          } ${isPinned ? "border-yellow-200 bg-yellow-50/30" : ""}`}
-        style={{ backgroundColor: note.color }}
-        onClick={() => setSelectedNote(note)}
-      >
-        <CardHeader className="pb-2">
-          <div className="flex items-start justify-between">
-            <div className="flex-1 min-w-0 space-y-1">
-              <div className="flex items-center gap-2">
-                {isPinned && <Pin className="w-4 h-4 text-yellow-600" />}
-                <h3 className="font-medium text-sm truncate">{note.title}</h3>
-              </div>
-              <div className="flex items-center gap-2">
-                <Badge variant="outline" className="text-xs">
-                  {note.category}
-                </Badge>
-                {note.aiGenerated && (
-                  <Badge variant="secondary" className="text-xs">
-                    <Brain className="w-3 h-3 mr-1" />
-                    AI
-                  </Badge>
-                )}
-              </div>
-            </div>
-            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  toggleNoteStarred(note.id)
-                }}
-              >
-                <Star className={`w-4 h-4 ${note.isStarred ? "fill-yellow-400 text-yellow-400" : ""}`} />
-              </Button>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                  <Button variant="ghost" size="sm">
-                    <MoreHorizontal className="w-4 h-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent>
-                  <DropdownMenuItem onClick={() => toggleNotePinned(note.id)}>
-                    <Pin className="w-4 h-4 mr-2" />
-                    {note.isPinned ? "Unpin" : "Pin"}
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => toggleNoteBookmarked(note.id)}>
-                    <Bookmark className="w-4 h-4 mr-2" />
-                    {note.isBookmarked ? "Remove Bookmark" : "Bookmark"}
-                  </DropdownMenuItem>
-                  <DropdownMenuItem>
-                    <Share className="w-4 h-4 mr-2" />
-                    Share
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => deleteNote(note.id)}>
-                    <Trash2 className="w-4 h-4 mr-2" />
-                    Delete
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent className="pt-0">
-          <div className="space-y-3">
-            <p className="text-sm text-gray-700 line-clamp-3">{note.excerpt}</p>
-
-            <div className="flex flex-wrap gap-1">
-              {noteTagsArray.slice(0, 3).map((tag: string) => (
-                <Badge key={tag} variant="outline" className="text-xs">
-                  #{tag}
-                </Badge>
-              ))}
-              {noteTagsArray.length > 3 && (
-                <Badge variant="outline" className="text-xs">
-                  +{noteTagsArray.length - 3}
-                </Badge>
-              )}
-            </div>
-
-            <div className="flex items-center justify-between text-xs text-gray-600">
-              <div className="flex items-center gap-3">
-                <span>{note.wordCount} words</span>
-                <span>{note.readingTime}min read</span>
-              </div>
-              <div className="flex items-center gap-1">
-                <Clock className="w-3 h-3" />
-                {note.updatedAt.toLocaleDateString()}
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-1">
-                {note.isBookmarked && <Bookmark className="w-4 h-4 text-blue-600" />}
-                {note.isShared && <Share className="w-4 h-4 text-green-600" />}
-                {Array.isArray(note.linkedNotes) && note.linkedNotes.length > 0 && (
-                  <span className="flex items-center gap-1 text-xs text-gray-500">
-                    <LinkIcon className="w-3 h-3" />
-                    {note.linkedNotes.length}
-                  </span>
-                )}
-              </div>
-              <Badge
-                variant={note.priority === "high" ? "destructive" : note.priority === "medium" ? "default" : "secondary"}
-                className="text-xs"
-              >
-                {note.priority}
-              </Badge>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-    )
-  }
 
   const selectedNoteTags = Array.isArray(selectedNote?.tags) ? selectedNote.tags : []
   const selectedLinkedNotesArray = Array.isArray(selectedNote?.linkedNotes) ? selectedNote.linkedNotes : []
@@ -1205,23 +1112,12 @@ export default function NotesPage(props: { notes: DB_NoteType[], userId: string 
                 </div>
 
                 <div className="flex flex-wrap gap-2">
-                  {selectedNoteTags.map((tag) => (
-                    <Badge key={tag} variant="outline">
+                  {selectedNoteTags.map((tag, index) => (
+                    <Badge key={index} variant="outline">
                       #{tag}
                     </Badge>
                   ))}
                 </div>
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -1255,10 +1151,10 @@ export default function NotesPage(props: { notes: DB_NoteType[], userId: string 
                     </CardHeader>
                     <CardContent>
                       <div className="space-y-2">
-                        {selectedLinkedNotesArray.map((linkedId) => {
+                        {selectedLinkedNotesArray.map((linkedId, index) => {
                           const linkedNote = notes.find((n) => n.id === linkedId)
                           return linkedNote ? (
-                            <div key={linkedId} className="flex items-center gap-2 p-2 bg-gray-50 rounded">
+                            <div key={index} className="flex items-center gap-2 p-2 bg-gray-50 rounded">
                               <div className="w-3 h-3 rounded-full" style={{ backgroundColor: linkedNote.color }} />
                               <span className="text-sm">{linkedNote.title}</span>
                             </div>

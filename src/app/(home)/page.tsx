@@ -65,7 +65,7 @@ const stats = [
 export default async function HomePage() {
 
   const user = await auth();
-  if (user) {
+  if (user.userId) {
     redirect('/workspace');
   }
 

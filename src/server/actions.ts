@@ -1,8 +1,8 @@
 "use server"
 
-import { and, desc, eq } from "drizzle-orm"
+import { and, desc, eq, sql } from "drizzle-orm"
 import { db } from "./db"
-import { files_table, notes_table } from "./db/schema"
+import { files_table, note_folders_table, notes_table } from "./db/schema"
 import type { DB_NoteType } from "./db/schema"
 import { auth } from "@clerk/nextjs/server";
 import { UTApi } from "uploadthing/server";
@@ -105,6 +105,19 @@ export async function createNote(noteData: {
       .limit(1)
       .then(rows => rows[0]);
 
+    if (noteData.folder) {
+      await db
+        .update(note_folders_table)
+        .set({
+          noteCount: sql`${note_folders_table.noteCount} + 1`,
+        })
+        .where(
+          and(
+            eq(note_folders_table.id, noteData.folder),
+            eq(note_folders_table.ownerId, noteData.ownerId)
+          )
+        );
+    }
 
     return {
       success: true,

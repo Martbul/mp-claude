@@ -14,9 +14,12 @@ export default async function Notes() {
   const notes = await QUERIES.getNotes(user.userId!)
   console.log(notes)
 
+  const notesFolders = await QUERIES.getNotesFolders(user.userId!)
+  console.log(notesFolders)
+
 
   return (
-    <NotesPage notes={notes} userId={user.userId!} ></NotesPage>
+    <NotesPage notes={notes} notesFolders={notesFolders} userId={user.userId!} ></NotesPage>
   );
 }
 

@@ -5,7 +5,7 @@ export default async function SignInPage() {
 
 
   const user = await auth();
-  if (user) {
+  if (user.userId) {
     redirect('/workspace');
   }
   return (

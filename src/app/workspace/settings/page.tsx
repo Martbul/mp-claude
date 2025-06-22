@@ -66,6 +66,7 @@ import {
   AlertDialogTrigger,
 } from "~/components/ui/alert-dialog"
 import { Avatar, AvatarFallback, AvatarImage } from "~/components/ui/avatar"
+import { SignOutButton } from "@clerk/nextjs"
 
 // Types
 interface UserProfile {
@@ -1128,9 +1129,43 @@ export default function SettingsPage() {
 
                     <div className="flex items-center justify-between">
                       <div>
+                        <h4 className="font-medium text-red-600">Log out</h4>
+                        <p className="text-sm text-gray-500">Log out of your current account</p>
+                      </div>
+
+
+
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+
+                          <SignOutButton>
+                            <button>Custom sign out button</button>
+                          </SignOutButton>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction className="bg-red-600 hover:bg-red-700">
+                              Yes, log out of my account
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </div>
+
+
+                    <Separator />
+                    <div className="flex items-center justify-between">
+                      <div>
                         <h4 className="font-medium text-red-600">Delete Account</h4>
                         <p className="text-sm text-gray-500">Permanently delete your account and all data</p>
                       </div>
+
+
+
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
                           <Button variant="destructive">
