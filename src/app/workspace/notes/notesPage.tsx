@@ -13,16 +13,13 @@ import {
   Share,
   Star,
   Tag,
-  Eye,
   Edit,
   Trash2,
   Download,
-  Copy,
   Pin,
   Bookmark,
   SortAsc,
   SortDesc,
-  MoreHorizontal,
   LinkIcon,
   Brain,
   FolderIcon,
@@ -37,7 +34,6 @@ import { Label } from "~/components/ui/label"
 import { Textarea } from "~/components/ui/textarea"
 import { Badge } from "~/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~/components/ui/select"
-import { Checkbox } from "~/components/ui/checkbox"
 import {
   Dialog,
   DialogContent,
@@ -46,17 +42,14 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "~/components/ui/dialog"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "~/components/ui/dropdown-menu"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs"
 import type { DB_NoteFolderType, DB_NoteType } from "~/server/db/schema"
 import { createNote as createNoteAction } from "~/server/actions";
-import NoteCard from "./components/NoteCardComponent"
+import KanbanView from "./notesRenderView/KanbanView"
+import GridView from "./notesRenderView/GridView"
+import ListView from "./notesRenderView/ListView"
+import MindmapView from "./notesRenderView/MindmapView"
+import TimelineView from "./notesRenderView/TimelineView"
 
 interface NoteTemplate {
   id: string
@@ -147,7 +140,7 @@ export default function NotesPage(props: { notes: DB_NoteType[], notesFolders: D
   })
 
   // Filter and sort notes
-  const filteredAndSortedNotes = useMemo(() => {
+  const filteredAndSortedNotes: DB_NoteType[] = useMemo(() => {
     const filtered = notes.filter((note) => {
       const noteTagsArray = Array.isArray(note.tags) ? note.tags : []
 
@@ -343,296 +336,6 @@ export default function NotesPage(props: { notes: DB_NoteType[], notesFolders: D
     }
   };
 
-
-
-
-  // Render different views
-  const renderGridView = () => (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-      {/* Pinned notes first */}
-      {filteredAndSortedNotes
-        .filter((note) => note.isPinned)
-        .map((note) => (
-          <NoteCard key={`pinned-${note.id}`} note={note} isPinned
-            selectedNotes={selectedNotes}
-            setSelectedNote={setSelectedNote}
-            deleteNote={deleteNote}
-            toggleNoteStarred={toggleNoteStarred}
-            toggleNotePinned={toggleNotePinned}
-            toggleNoteBookmarked={toggleNoteBookmarked}
-          />
-
-        ))}
-      {/* Regular notes */}
-      {filteredAndSortedNotes
-        .filter((note) => !note.isPinned)
-        .map((note) => (
-
-          <NoteCard
-            key={note.id}
-            note={note}
-            isPinned={note.isPinned}
-            selectedNotes={selectedNotes}
-            setSelectedNote={setSelectedNote}
-            deleteNote={deleteNote}
-            toggleNoteStarred={toggleNoteStarred}
-            toggleNotePinned={toggleNotePinned}
-            toggleNoteBookmarked={toggleNoteBookmarked}
-          />
-        ))}
-    </div>
-  )
-
-  const renderListView = () => (
-    <div className="space-y-2">
-      {filteredAndSortedNotes.map((note) => (
-        <Card
-          key={note.id}
-          className={`hover:shadow-md transition-all cursor-pointer ${selectedNotes.includes(note.id) ? "ring-2 ring-blue-500" : ""
-            }`}
-        >
-          <CardContent className="p-4">
-            <div className="flex items-center gap-4">
-              <Checkbox
-                checked={selectedNotes.includes(note.id)}
-                onCheckedChange={() => toggleNoteSelection(note.id)}
-                onClick={(e) => e.stopPropagation()}
-              />
-              <div className="w-4 h-4 rounded-full flex-shrink-0" style={{ backgroundColor: note.color }} />
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <h3 className="font-medium truncate">{note.title}</h3>
-                  {note.isPinned && <Pin className="w-4 h-4 text-gray-600" />}
-                  {note.isStarred && <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />}
-                  {note.isBookmarked && <Bookmark className="w-4 h-4 text-blue-600" />}
-                </div>
-                <p className="text-sm text-gray-600 truncate">{note.excerpt}</p>
-                <div className="flex items-center gap-4 text-xs text-gray-500 mt-1">
-                  <span>{note.category}</span>
-                  <span>{note.wordCount} words</span>
-                  <span>{note.updatedAt.toLocaleDateString()}</span>
-                  <span className="flex items-center gap-1">
-                    <Eye className="w-3 h-3" />
-                    {note.viewCount}
-                  </span>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <Badge variant="outline" className="text-xs">
-                  {note.priority}
-                </Badge>
-                <Badge variant={note.status === "completed" ? "default" : "secondary"} className="text-xs">
-                  {note.status}
-                </Badge>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                    <Button variant="ghost" size="sm">
-                      <MoreHorizontal className="w-4 h-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent>
-                    <DropdownMenuItem onClick={() => setSelectedNote(note)}>
-                      <Eye className="w-4 h-4 mr-2" />
-                      View
-                    </DropdownMenuItem>
-                    <DropdownMenuItem>
-                      <Edit className="w-4 h-4 mr-2" />
-                      Edit
-                    </DropdownMenuItem>
-                    <DropdownMenuItem>
-                      <Copy className="w-4 h-4 mr-2" />
-                      Duplicate
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={() => deleteNote(note.id)}>
-                      <Trash2 className="w-4 h-4 mr-2" />
-                      Delete
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      ))}
-    </div>
-  )
-
-  const renderKanbanView = () => {
-    const statusColumns = [
-      { id: "draft", title: "Draft", notes: filteredAndSortedNotes.filter((n) => n.status === "draft") },
-      {
-        id: "in-progress",
-        title: "In Progress",
-        notes: filteredAndSortedNotes.filter((n) => n.status === "in-progress"),
-      },
-      { id: "completed", title: "Completed", notes: filteredAndSortedNotes.filter((n) => n.status === "completed") },
-      { id: "archived", title: "Archived", notes: filteredAndSortedNotes.filter((n) => n.status === "archived") },
-    ]
-
-    return (
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {statusColumns.map((column) => (
-          <div key={column.id} className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="font-semibold">{column.title}</h3>
-              <Badge variant="secondary">{column.notes.length}</Badge>
-            </div>
-            <div className="space-y-3">
-              {column.notes.map((note) => (
-                <Card key={note.id} className="p-3 hover:shadow-md transition-all cursor-pointer">
-                  <div className="space-y-2">
-                    <div className="flex items-start justify-between">
-                      <h4 className="font-medium text-sm truncate pr-2">{note.title}</h4>
-                      <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: note.color }} />
-                    </div>
-                    <p className="text-xs text-gray-600 line-clamp-2">{note.excerpt}</p>
-                    <div className="flex items-center justify-between">
-                      <Badge variant="outline" className="text-xs">
-                        {note.category}
-                      </Badge>
-                      <div className="flex items-center gap-1">
-                        {note.isPinned && <Pin className="w-3 h-3 text-gray-600" />}
-                        {note.isStarred && <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" />}
-                        {note.aiGenerated && <Brain className="w-3 h-3 text-purple-600" />}
-                      </div>
-                    </div>
-                    <div className="text-xs text-gray-500">
-                      {note.wordCount} words • {note.readingTime}min read
-                    </div>
-                  </div>
-                </Card>
-              ))}
-            </div>
-          </div>
-        ))}
-      </div>
-    )
-  }
-
-  const renderTimelineView = () => {
-    const groupedByDate = filteredAndSortedNotes.reduce(
-      (acc, note) => {
-        const date = note.updatedAt.toDateString()
-        acc[date] ??= []
-        acc[date].push(note)
-        return acc
-      },
-      {} as Record<string, DB_NoteType[]>,
-    )
-
-    return (
-      <div className="space-y-8">
-        {Object.entries(groupedByDate).map(([date, dayNotes]) => (
-          <div key={date} className="relative">
-            <div className="sticky top-0 bg-white z-10 py-2 border-b">
-              <h3 className="font-semibold text-lg">{date}</h3>
-            </div>
-            <div className="mt-4 space-y-4 relative">
-              <div className="absolute left-6 top-0 bottom-0 w-0.5 bg-gray-200" />
-              {dayNotes.map((note) => (
-                <div key={note.id} className="relative flex gap-4">
-                  <div className="flex-shrink-0 w-12 h-12 bg-white border-2 border-gray-200 rounded-full flex items-center justify-center">
-                    <div className="w-6 h-6 rounded-full" style={{ backgroundColor: note.color }} />
-                  </div>
-                  <Card className="flex-1 hover:shadow-md transition-all cursor-pointer">
-                    <CardContent className="p-4">
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between">
-                          <h4 className="font-medium">{note.title}</h4>
-                          <div className="flex items-center gap-2">
-                            <Badge variant="outline" className="text-xs">
-                              {note.category}
-                            </Badge>
-                            <span className="text-xs text-gray-500">
-                              {note.updatedAt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                            </span>
-                          </div>
-                        </div>
-                        <p className="text-sm text-gray-600">{note.excerpt}</p>
-                        <div className="flex items-center gap-4 text-xs text-gray-500">
-                          <span>{note.wordCount} words</span>
-                          <span>{note.readingTime}min read</span>
-                          <span>v{note.version}</span>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </div>
-              ))}
-            </div>
-          </div>
-        ))}
-      </div>
-    )
-  }
-
-  const renderMindMapView = () => {
-    // Group notes by category for mind map visualization
-    const categoryGroups = categories.map((category) => ({
-      category,
-      notes: filteredAndSortedNotes.filter((note) => note.category === category),
-      color: noteColors[categories.indexOf(category) % noteColors.length],
-    }))
-
-    return (
-      <div className="space-y-8">
-        <div className="text-center">
-          <div className="inline-flex items-center justify-center w-32 h-32 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full text-white text-lg font-bold">
-            My Notes
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {categoryGroups.map((group) => (
-            <div key={group.category} className="space-y-4">
-              <div className="text-center">
-                <div
-                  className="inline-flex items-center justify-center w-24 h-24 rounded-full text-white font-semibold"
-                  style={{ backgroundColor: group.color }}
-                >
-                  {group.category}
-                </div>
-                <div className="mt-2 text-sm text-gray-600">{group.notes.length} notes</div>
-              </div>
-
-              <div className="space-y-2">
-                {group.notes.slice(0, 5).map((note) => {
-                  const linkedNotesArray = Array.isArray(note.linkedNotes) ? note.linkedNotes : []
-                  return (
-                    <Card key={note.id} className="p-3 hover:shadow-md transition-all cursor-pointer">
-                      <div className="flex items-center gap-3">
-                        <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: note.color }} />
-                        <div className="flex-1 min-w-0">
-                          <h4 className="font-medium text-sm truncate">{note.title}</h4>
-                          <div className="flex items-center gap-2 text-xs text-gray-500">
-                            <span>{note.wordCount} words</span>
-                            {linkedNotesArray.length > 0 && (
-                              <span className="flex items-center gap-1">
-                                <LinkIcon className="w-3 h-3" />
-                                {linkedNotesArray.length}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          {note.isPinned && <Pin className="w-3 h-3 text-gray-600" />}
-                          {note.isStarred && <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" />}
-                        </div>
-                      </div>
-                    </Card>
-                  )
-                })}
-                {group.notes.length > 5 && (
-                  <div className="text-center text-sm text-gray-500">+{group.notes.length - 5} more notes</div>
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    )
-  }
 
 
 
@@ -1051,11 +754,11 @@ export default function NotesPage(props: { notes: DB_NoteType[], notesFolders: D
               </Card>
             )}
 
-            {viewMode === "grid" && renderGridView()}
-            {viewMode === "list" && renderListView()}
-            {viewMode === "kanban" && renderKanbanView()}
-            {viewMode === "timeline" && renderTimelineView()}
-            {viewMode === "mindmap" && renderMindMapView()}
+            {viewMode === "grid" && <GridView filteredAndSortedNotes={filteredAndSortedNotes} selectedNotes={selectedNotes} setSelectedNote={setSelectedNote} deleteNote={deleteNote} toggleNoteStarred={toggleNoteStarred} toggleNotePinned={toggleNotePinned} toggleNoteBookmarked={toggleNoteBookmarked} />}
+            {viewMode === "list" && <ListView filteredAndSortedNotes={filteredAndSortedNotes} selectedNotes={selectedNotes} setSelectedNote={setSelectedNote} deleteNote={deleteNote} toggleNoteSelection={toggleNoteSelection} />}
+            {viewMode === "kanban" && <KanbanView filteredAndSortedNotes={filteredAndSortedNotes} />}
+            {viewMode === "timeline" && <TimelineView filteredAndSortedNotes={filteredAndSortedNotes} />}
+            {viewMode === "mindmap" && <MindmapView filteredAndSortedNotes={filteredAndSortedNotes} categories={categories} noteColors={noteColors} />}
 
             {filteredAndSortedNotes.length === 0 && (
               <Card>
