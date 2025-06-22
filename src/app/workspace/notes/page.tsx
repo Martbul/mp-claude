@@ -10,7 +10,6 @@ export default async function Notes() {
     redirect('/sign-in');
   }
 
-
   const notes = await QUERIES.getNotes(user.userId)
   console.log(notes)
 

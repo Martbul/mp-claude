@@ -17,7 +17,6 @@ import {
   Trash2,
   Download,
   Pin,
-  Bookmark,
   SortAsc,
   SortDesc,
   LinkIcon,
@@ -26,6 +25,7 @@ import {
   Type,
   Network,
   Trash,
+  UndoIcon,
 } from "lucide-react"
 
 import { Button } from "~/components/ui/button"
@@ -45,7 +45,7 @@ import {
 } from "~/components/ui/dialog"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs"
 import type { DB_NoteFolderType, DB_NoteType } from "~/server/db/schema"
-import { createNote as createNoteAction, starNoteAction, unstarNoteAction } from "~/server/actions";
+import { createNote as createNoteAction, deleteNoteAction, pinNoteAction, starNoteAction, unpinNoteAction, unstarNoteAction } from "~/server/actions";
 import KanbanView from "./notesRenderView/KanbanView"
 import GridView from "./notesRenderView/GridView"
 import ListView from "./notesRenderView/ListView"
@@ -64,7 +64,6 @@ interface NoteTemplate {
 type ViewMode = "grid" | "list" | "kanban" | "timeline" | "mindmap"
 type SortBy = "updated" | "created" | "title" | "category" | "wordcount"
 
-// Sample data
 const noteColors = [
   "#FFE4E1",
   "#E1F5FE",
@@ -140,7 +139,6 @@ export default function NotesPage(props: { notes: DB_NoteType[], notesFolders: D
     folder: "",
   })
 
-  // Filter and sort notes
   const filteredAndSortedNotes: DB_NoteType[] = useMemo(() => {
     const filtered = notes.filter((note) => {
       const noteTagsArray = Array.isArray(note.tags) ? note.tags : []
@@ -182,19 +180,55 @@ export default function NotesPage(props: { notes: DB_NoteType[], notesFolders: D
     })
   }, [notes, searchTerm, selectedCategory, selectedFolder, sortBy, sortOrder])
 
-  // Get unique categories
   const categories = Array.from(new Set(notes.map((note) => note.category).filter(Boolean)))
 
-  // Toggle note selection
   const toggleNoteSelection = (noteId: number) => {
     setSelectedNotes((prev) => (prev.includes(noteId) ? prev.filter((id) => id !== noteId) : [...prev, noteId]))
   }
 
-  // Toggle note properties
-  // //TODO: Persist pinned star to db(with optimisic and so on...)
-  const toggleNotePinned = (noteId: number) => {
-    setNotes((prev) => prev.map((note) => (note.id === noteId ? { ...note, isPinned: !note.isPinned } : note)))
-  }
+  const toggleNotePinned = async (noteId: number) => {
+    setNotes(prev =>
+      prev.map(note =>
+        note.id === noteId ? { ...note, isPinned: !note.isPinned } : note)
+    )
+
+    try {
+      const result = await (notes.find(n => n.id === noteId)?.isPinned
+        ? unpinNoteAction(props.userId, noteId)
+        : pinNoteAction(props.userId, noteId))
+
+
+      if (result.success && result.data) {
+        const updatedNote = result.data as DB_NoteType;
+
+
+        setNotes(prev =>
+          prev.map(note =>
+            note.id === noteId ? updatedNote : note
+          )
+        );
+      } else {
+        // Revert change on failure
+
+        setNotes(prev =>
+          prev.map(note =>
+            note.id === noteId ? { ...note, isPinned: !note.isPinned } : note
+          )
+        );
+        console.error("Failed to pin/unpin note", result.error);
+      }
+
+
+    } catch (error) {
+      // Revert optimistic update on exception
+      setNotes(prev =>
+        prev.map(note =>
+          note.id === noteId ? { ...note, isStarred: !note.isStarred } : note
+        )
+      );
+      console.error("Error toggling note star status", error);
+    }
+  };
 
 
   const toggleNoteStarred = async (noteId: number) => {
@@ -240,21 +274,38 @@ export default function NotesPage(props: { notes: DB_NoteType[], notesFolders: D
     }
   };
 
-  const toggleNoteBookmarked = (noteId: number) => {
-    setNotes((prev) => prev.map((note) => (note.id === noteId ? { ...note, isBookmarked: !note.isBookmarked } : note)))
-  }
 
-  // Delete note
-  const deleteNote = (noteId: number) => {
-    setNotes((prev) => prev.filter((note) => note.id !== noteId))
-    setSelectedNotes((prev) => prev.filter((id) => id !== noteId))
-  }
+
+  const deleteNote = async (noteId: number) => {
+    // Optimistically update UI
+    const prevNotes = notes;
+    const prevSelectedNotes = selectedNotes;
+
+    setNotes(prev => prev.filter(note => note.id !== noteId));
+    setSelectedNotes(prev => prev.filter(id => id !== noteId));
+    setSelectedNote(null)
+    try {
+      const result = await deleteNoteAction(props.userId, noteId);
+
+      if (!result.success) {
+        // Revert change on failure
+        setNotes(prevNotes);
+        setSelectedNotes(prevSelectedNotes);
+        console.error("Failed to delete note", result.error);
+      }
+    } catch (error) {
+      // Revert optimistic update on exception
+      setNotes(prevNotes);
+      setSelectedNotes(prevSelectedNotes);
+      console.error("Error deleting note", error);
+    }
+  };
 
   const createNote = async () => {
     const wordCount = newNote.content.split(" ").filter(word => word.length > 0).length;
 
     const optimisticNote: DB_NoteType = {
-      id: Date.now(), // Temporary unique ID for optimistic update
+      id: Date.now(),
       title: newNote.title || "Untitled Note",
       ownerId: props.userId,
       content: newNote.content,
@@ -298,7 +349,6 @@ export default function NotesPage(props: { notes: DB_NoteType[], notesFolders: D
     setNotes(prev => [...prev, optimisticNote]);
 
 
-    // Increase folder note count optimistically
     if (selectedFolder) {
       setFolders(prev =>
         prev.map(folder =>
@@ -432,6 +482,26 @@ export default function NotesPage(props: { notes: DB_NoteType[], notesFolders: D
                             onChange={(e) => setNewNote((prev) => ({ ...prev, title: e.target.value }))}
                             placeholder="Enter note title"
                           />
+                        </div>
+                        <div>
+                          <Label htmlFor="folder">Folder</Label>
+                          <Select
+                            value={newNote.folder}
+                            onValueChange={(value) => setNewNote((prev) => ({ ...prev, folder: value }))}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select folder" />
+                            </SelectTrigger>
+
+
+                            <SelectContent>
+                              {folders.map((folder, index) => (
+                                <SelectItem key={index} value={folder.name}>
+                                  {folder.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                         </div>
                         <div>
                           <Label htmlFor="category">Category</Label>
@@ -674,9 +744,7 @@ export default function NotesPage(props: { notes: DB_NoteType[], notesFolders: D
           </div>
         </div>
 
-        {/* Main Content */}
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          {/* Sidebar */}
           <div className="space-y-4">
             <Card>
               <CardHeader>
@@ -728,10 +796,6 @@ export default function NotesPage(props: { notes: DB_NoteType[], notesFolders: D
                     Starred ({notes.filter((n) => n.isStarred).length})
                   </Button>
                   <Button variant="ghost" className="w-full justify-start">
-                    <Bookmark className="w-4 h-4 mr-2" />
-                    Bookmarked ({notes.filter((n) => n.isBookmarked).length})
-                  </Button>
-                  <Button variant="ghost" className="w-full justify-start">
                     <Brain className="w-4 h-4 mr-2" />
                     AI Generated ({notes.filter((n) => n.aiGenerated).length})
                   </Button>
@@ -766,7 +830,6 @@ export default function NotesPage(props: { notes: DB_NoteType[], notesFolders: D
             </Card>
           </div>
 
-          {/* Main Content Area */}
           <div className="lg:col-span-3 space-y-4">
             {selectedNotes.length > 0 && (
               <Card>
@@ -786,7 +849,7 @@ export default function NotesPage(props: { notes: DB_NoteType[], notesFolders: D
                         <Download className="w-4 h-4 mr-2" />
                         Export
                       </Button>
-                      <Button size="sm" variant="outline">
+                      <Button size="sm" variant="outline"  >
                         <Trash2 className="w-4 h-4 mr-2" />
                         Delete
                       </Button>
@@ -822,7 +885,6 @@ export default function NotesPage(props: { notes: DB_NoteType[], notesFolders: D
           </div>
         </div>
 
-        {/* Note Details Modal */}
         {selectedNote && (
 
           <Dialog open={!!selectedNote} onOpenChange={() => setSelectedNote(null)}>
@@ -835,10 +897,20 @@ export default function NotesPage(props: { notes: DB_NoteType[], notesFolders: D
                   </DialogTitle>
                   <div className="flex items-center gap-2">
 
-                    <Button variant="outline" size="sm">
+                    {selectedNote.isPinned ? <Button variant="outline" size="sm" onClick={async (e) => {
+                      e.stopPropagation()
+                      await toggleNotePinned(selectedNote.id)
+                    }}>
+                      <UndoIcon className="w-4 h-4 mr-2" />
+                      Unpin
+                    </Button> : <Button variant="outline" size="sm" onClick={async (e) => {
+                      e.stopPropagation()
+                      await toggleNotePinned(selectedNote.id)
+                    }} >
                       <Pin className="w-4 h-4 mr-2" />
                       Pin
-                    </Button>
+                    </Button>}
+
                     <Button variant="outline" size="sm">
                       <Share className="w-4 h-4 mr-2" />
                       Share
@@ -847,7 +919,7 @@ export default function NotesPage(props: { notes: DB_NoteType[], notesFolders: D
                       <Edit className="w-4 h-4 mr-2" />
                       Edit
                     </Button>
-                    <Button variant="outline" size="sm">
+                    <Button variant="outline" size="sm" onClick={() => deleteNote(selectedNote.id)}>
                       <Trash className="w-4 h-4 mr-2" />
                       Delete
                     </Button>
@@ -923,6 +995,6 @@ export default function NotesPage(props: { notes: DB_NoteType[], notesFolders: D
           </Dialog>
         )}
       </div>
-    </div>
+    </div >
   )
 }

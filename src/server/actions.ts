@@ -172,7 +172,7 @@ export async function starNoteAction(userId: string, noteId: number) {
 
 export async function unstarNoteAction(userId: string, noteId: number) {
   try {
-    const result = await db
+    await db
       .update(notes_table)
       .set({ isStarred: false })
       .where(and(
@@ -199,7 +199,7 @@ export async function unstarNoteAction(userId: string, noteId: number) {
 
 export async function pinNoteAction(userId: string, noteId: number) {
   try {
-    const result = await db
+    await db
       .update(notes_table)
       .set({ isPinned: true })
       .where(and(
@@ -207,7 +207,18 @@ export async function pinNoteAction(userId: string, noteId: number) {
         eq(notes_table.ownerId, userId)
       ));
 
-    return { success: true, data: result };
+    const [updatedNote] = await db
+      .select()
+      .from(notes_table)
+      .where(eq(notes_table.id, noteId));
+
+    if (!updatedNote) {
+      return { success: false, error: "Note not found after update" };
+    }
+
+
+
+    return { success: true, data: updatedNote };
   } catch (error) {
     console.error("Failed to pin note", error);
     return { success: false, error: "Failed to pin note" };
@@ -216,7 +227,7 @@ export async function pinNoteAction(userId: string, noteId: number) {
 
 export async function unpinNoteAction(userId: string, noteId: number) {
   try {
-    const result = await db
+    await db
       .update(notes_table)
       .set({ isPinned: false })
       .where(and(
@@ -224,9 +235,37 @@ export async function unpinNoteAction(userId: string, noteId: number) {
         eq(notes_table.ownerId, userId)
       ));
 
-    return { success: true, data: result };
+    const [updatedNote] = await db
+      .select()
+      .from(notes_table)
+      .where(eq(notes_table.id, noteId));
+
+    if (!updatedNote) {
+      return { success: false, error: "Note not found after update" };
+    }
+
+
+    return { success: true, data: updatedNote };
   } catch (error) {
     console.error("Failed to unpin note", error);
     return { success: false, error: "Failed to unpin note" };
+  }
+}
+
+
+
+export async function deleteNoteAction(userId: string, noteId: number) {
+  try {
+    await db.delete(notes_table).where(and(
+      eq(notes_table.id, Number(noteId)),
+      eq(notes_table.ownerId, userId)
+
+    ));
+
+    return { success: true }
+
+  } catch (error) {
+    console.log("Failed to delete note", error)
+    return { success: false, error: "Filed to delete note" }
   }
 }

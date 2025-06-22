@@ -105,7 +105,6 @@ export default function NoteCard({
 
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-1">
-              {note.isBookmarked && <Bookmark className="w-4 h-4 text-blue-600" />}
               {note.isShared && <Share className="w-4 h-4 text-green-600" />}
               {Array.isArray(note.linkedNotes) && note.linkedNotes.length > 0 && (
                 <span className="flex items-center gap-1 text-xs text-gray-500">
