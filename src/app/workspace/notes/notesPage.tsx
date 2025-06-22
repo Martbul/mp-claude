@@ -25,6 +25,7 @@ import {
   FolderIcon,
   Type,
   Network,
+  Trash,
 } from "lucide-react"
 
 import { Button } from "~/components/ui/button"
@@ -44,7 +45,7 @@ import {
 } from "~/components/ui/dialog"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs"
 import type { DB_NoteFolderType, DB_NoteType } from "~/server/db/schema"
-import { createNote as createNoteAction } from "~/server/actions";
+import { createNote as createNoteAction, starNoteAction, unstarNoteAction } from "~/server/actions";
 import KanbanView from "./notesRenderView/KanbanView"
 import GridView from "./notesRenderView/GridView"
 import ListView from "./notesRenderView/ListView"
@@ -190,13 +191,54 @@ export default function NotesPage(props: { notes: DB_NoteType[], notesFolders: D
   }
 
   // Toggle note properties
+  // //TODO: Persist pinned star to db(with optimisic and so on...)
   const toggleNotePinned = (noteId: number) => {
     setNotes((prev) => prev.map((note) => (note.id === noteId ? { ...note, isPinned: !note.isPinned } : note)))
   }
 
-  const toggleNoteStarred = (noteId: number) => {
-    setNotes((prev) => prev.map((note) => (note.id === noteId ? { ...note, isStarred: !note.isStarred } : note)))
-  }
+
+  const toggleNoteStarred = async (noteId: number) => {
+    // Optimistically update UI
+    setNotes(prev =>
+      prev.map(note =>
+        note.id === noteId ? { ...note, isStarred: !note.isStarred } : note
+      )
+    );
+
+    try {
+      const result = await (notes.find(n => n.id === noteId)?.isStarred
+        ? unstarNoteAction(props.userId, noteId)
+        : starNoteAction(props.userId, noteId));
+
+      if (result.success && result.data) {
+        // Replace updated note with data from DB if available 
+        const updatedNote = result.data as DB_NoteType;
+
+        setNotes(prev =>
+          prev.map(note =>
+            note.id === noteId ? updatedNote : note
+          )
+        );
+      } else {
+        // Revert change on failure
+
+        setNotes(prev =>
+          prev.map(note =>
+            note.id === noteId ? { ...note, isStarred: !note.isStarred } : note
+          )
+        );
+        console.error("Failed to star/unstar note", result.error);
+      }
+    } catch (error) {
+      // Revert optimistic update on exception
+      setNotes(prev =>
+        prev.map(note =>
+          note.id === noteId ? { ...note, isStarred: !note.isStarred } : note
+        )
+      );
+      console.error("Error toggling note star status", error);
+    }
+  };
 
   const toggleNoteBookmarked = (noteId: number) => {
     setNotes((prev) => prev.map((note) => (note.id === noteId ? { ...note, isBookmarked: !note.isBookmarked } : note)))
@@ -754,7 +796,7 @@ export default function NotesPage(props: { notes: DB_NoteType[], notesFolders: D
               </Card>
             )}
 
-            {viewMode === "grid" && <GridView filteredAndSortedNotes={filteredAndSortedNotes} selectedNotes={selectedNotes} setSelectedNote={setSelectedNote} deleteNote={deleteNote} toggleNoteStarred={toggleNoteStarred} toggleNotePinned={toggleNotePinned} toggleNoteBookmarked={toggleNoteBookmarked} />}
+            {viewMode === "grid" && <GridView filteredAndSortedNotes={filteredAndSortedNotes} selectedNotes={selectedNotes} setSelectedNote={setSelectedNote} toggleNoteStarred={toggleNoteStarred} />}
             {viewMode === "list" && <ListView filteredAndSortedNotes={filteredAndSortedNotes} selectedNotes={selectedNotes} setSelectedNote={setSelectedNote} deleteNote={deleteNote} toggleNoteSelection={toggleNoteSelection} />}
             {viewMode === "kanban" && <KanbanView filteredAndSortedNotes={filteredAndSortedNotes} />}
             {viewMode === "timeline" && <TimelineView filteredAndSortedNotes={filteredAndSortedNotes} />}
@@ -792,13 +834,22 @@ export default function NotesPage(props: { notes: DB_NoteType[], notesFolders: D
                     {selectedNote.title}
                   </DialogTitle>
                   <div className="flex items-center gap-2">
+
+                    <Button variant="outline" size="sm">
+                      <Pin className="w-4 h-4 mr-2" />
+                      Pin
+                    </Button>
+                    <Button variant="outline" size="sm">
+                      <Share className="w-4 h-4 mr-2" />
+                      Share
+                    </Button>
                     <Button variant="outline" size="sm">
                       <Edit className="w-4 h-4 mr-2" />
                       Edit
                     </Button>
                     <Button variant="outline" size="sm">
-                      <Share className="w-4 h-4 mr-2" />
-                      Share
+                      <Trash className="w-4 h-4 mr-2" />
+                      Delete
                     </Button>
                   </div>
                 </div>

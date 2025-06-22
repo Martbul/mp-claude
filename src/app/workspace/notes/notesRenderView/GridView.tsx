@@ -6,21 +6,17 @@ type GridViewProps = {
   filteredAndSortedNotes: DB_NoteType[];
   selectedNotes: number[];
   setSelectedNote: React.Dispatch<React.SetStateAction<DB_NoteType | null>>;
-  deleteNote: (noteId: number) => void;
   toggleNoteStarred: (noteId: number) => void;
-  toggleNotePinned: (noteId: number) => void;
-  toggleNoteBookmarked: (noteId: number) => void;
 }
 
 const GridView = ({
   filteredAndSortedNotes,
   selectedNotes,
   setSelectedNote,
-  deleteNote,
   toggleNoteStarred,
-  toggleNotePinned,
-  toggleNoteBookmarked
 }: GridViewProps) => {
+
+
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
@@ -31,10 +27,7 @@ const GridView = ({
           <NoteCard key={`pinned-${note.id}`} note={note} isPinned
             selectedNotes={selectedNotes}
             setSelectedNote={setSelectedNote}
-            deleteNote={deleteNote}
             toggleNoteStarred={toggleNoteStarred}
-            toggleNotePinned={toggleNotePinned}
-            toggleNoteBookmarked={toggleNoteBookmarked}
           />
 
         ))}
@@ -49,10 +42,7 @@ const GridView = ({
             isPinned={note.isPinned}
             selectedNotes={selectedNotes}
             setSelectedNote={setSelectedNote}
-            deleteNote={deleteNote}
             toggleNoteStarred={toggleNoteStarred}
-            toggleNotePinned={toggleNotePinned}
-            toggleNoteBookmarked={toggleNoteBookmarked}
           />
         ))}
     </div>

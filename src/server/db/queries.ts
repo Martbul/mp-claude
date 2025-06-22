@@ -1,6 +1,6 @@
 import "server-only";
 
-import { calendar_events_table, type DB_NoteType, documents_table, files_table, folders_table, notes_table, type DB_FileType, note_folders_table, DB_NoteFolderType } from "~/server/db/schema";
+import { calendar_events_table, type DB_NoteType, documents_table, files_table, folders_table, notes_table, type DB_FileType, note_folders_table, DB_NoteFolderType, settings_table } from "~/server/db/schema";
 import { db } from "~/server/db";
 import { and, desc, eq, isNull } from "drizzle-orm";
 
@@ -71,6 +71,11 @@ export const QUERIES = {
     const notesFolders = await db.select().from(note_folders_table).where(eq(note_folders_table.ownerId, userId))
     return notesFolders
   },
+
+  getUserSettings: async function(userId: string) {
+    const userSettings = await db.select().from(settings_table).where(eq(settings_table.userId, userId))
+    return userSettings[0]
+  },
 }
 
 
@@ -87,7 +92,86 @@ export const MUTATIONS = {
     return await db.insert(files_table).values({ ...input.file, ownerId: input.userId })
 
   },
+
   onboardUser: async function(userId: string) {
+ // Create default settings
+  await db.insert(settings_table).values({
+    userId,
+    
+    // Profile (empty)
+    name: null,
+    email: null,
+    phone: null,
+    bio: null,
+    institution: null,
+    major: null,
+    graduationYear: null,
+    location: null,
+    timezone: null,
+    avatar: null,
+
+    // Appearance
+    theme: "system",
+    accentColor: null,
+    fontSize: "medium",
+    compactMode: false,
+    animations: true,
+    sidebarCollapsed: false,
+    showAvatars: true,
+    colorBlindMode: false,
+
+    // Notifications
+    emailNotifications: true,
+    pushNotifications: true,
+    desktopNotifications: false,
+    studyReminders: true,
+    deadlineAlerts: true,
+    collaborationUpdates: true,
+    weeklyDigest: true,
+    marketingEmails: false,
+    soundEnabled: true,
+    vibrationEnabled: true,
+    quietHours: null,
+
+    // Privacy
+    profileVisibility: "friends",
+    showOnlineStatus: true,
+    allowDirectMessages: true,
+    shareStudyStats: false,
+    dataCollection: true,
+    analyticsOptIn: true,
+    twoFactorAuth: false,
+    sessionTimeout: 30,
+
+    // AI
+    aiAssistantEnabled: true,
+    autoSuggestions: true,
+    smartNotifications: true,
+    learningAnalytics: true,
+    personalizedContent: true,
+    voiceInteraction: false,
+    creativityLevel: 70,
+    responseLength: "medium",
+    preferredLanguage: "en",
+    contextAwareness: true,
+
+    // Study
+    defaultStudyDuration: 25,
+    breakDuration: 5,
+    longBreakInterval: 4,
+    focusMode: true,
+    backgroundSounds: false,
+    pomodoroEnabled: true,
+    goalTracking: true,
+    progressSharing: false,
+    studyStreaks: true,
+    difficultyAdaptation: true,
+    spacedRepetition: true,
+
+    createdAt: new Date()
+  });
+
+
     //create noteFolders
     await db.insert(note_folders_table).values([
       {

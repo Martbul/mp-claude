@@ -7,6 +7,7 @@ import type { DB_NoteType } from "./db/schema"
 import { auth } from "@clerk/nextjs/server";
 import { UTApi } from "uploadthing/server";
 import { cookies } from "next/headers";
+import { error } from "console"
 
 //when using use server every export becomes an endpoing
 //alon with that a function can be used in the client
@@ -139,5 +140,93 @@ export async function getNotes(userId: string) {
   } catch (error) {
     console.error("Failed to fetch notes:", error);
     return { success: false, error: "Failed to fetch notes" };
+  }
+}
+
+
+
+export async function starNoteAction(userId: string, noteId: number) {
+  try {
+    await db
+      .update(notes_table)
+      .set({ isStarred: true })
+      .where(and(
+        eq(notes_table.id, Number(noteId)),
+        eq(notes_table.ownerId, userId)
+      ));
+
+    const [updatedNote] = await db
+      .select()
+      .from(notes_table)
+      .where(eq(notes_table.id, noteId));
+
+    if (!updatedNote) {
+      return { success: false, error: "Note not found after update" };
+    }
+    return { success: true, data: updatedNote };
+  } catch {
+    console.error("Failed to star note", error)
+    return { success: false, error: "Failed to star note" }
+  }
+}
+
+export async function unstarNoteAction(userId: string, noteId: number) {
+  try {
+    const result = await db
+      .update(notes_table)
+      .set({ isStarred: false })
+      .where(and(
+        eq(notes_table.id, Number(noteId)),
+        eq(notes_table.ownerId, userId)
+      ));
+
+
+    const [updatedNote] = await db
+      .select()
+      .from(notes_table)
+      .where(eq(notes_table.id, noteId));
+
+    if (!updatedNote) {
+      return { success: false, error: "Note not found after update" };
+    }
+
+    return { success: true, data: updatedNote };
+  } catch (error) {
+    console.error("Failed to unstar note", error);
+    return { success: false, error: "Failed to unstar note" };
+  }
+}
+
+export async function pinNoteAction(userId: string, noteId: number) {
+  try {
+    const result = await db
+      .update(notes_table)
+      .set({ isPinned: true })
+      .where(and(
+        eq(notes_table.id, Number(noteId)),
+        eq(notes_table.ownerId, userId)
+      ));
+
+    return { success: true, data: result };
+  } catch (error) {
+    console.error("Failed to pin note", error);
+    return { success: false, error: "Failed to pin note" };
+  }
+}
+
+export async function unpinNoteAction(userId: string, noteId: number) {
+  try {
+    const result = await db
+      .update(notes_table)
+      .set({ isPinned: false })
+      .where(and(
+        eq(notes_table.id, Number(noteId)),
+        eq(notes_table.ownerId, userId)
+      ));
+
+    return { success: true, data: result };
+  } catch (error) {
+    console.error("Failed to unpin note", error);
+    return { success: false, error: "Failed to unpin note" };
   }
 }

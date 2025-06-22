@@ -2,10 +2,8 @@ import {
   Share,
   Star,
   Clock,
-  Trash2,
   Pin,
   Bookmark,
-  MoreHorizontal,
   LinkIcon,
   Brain,
 } from "lucide-react"
@@ -13,13 +11,6 @@ import {
 import { Button } from "~/components/ui/button"
 import { Card, CardContent, CardHeader } from "~/components/ui/card"
 import { Badge } from "~/components/ui/badge"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "~/components/ui/dropdown-menu"
 
 import type { DB_NoteType } from "~/server/db/schema"
 
@@ -29,13 +20,8 @@ type NoteCardProps = {
   isPinned?: boolean;
   selectedNotes: number[] | [];
   setSelectedNote: React.Dispatch<React.SetStateAction<DB_NoteType | null>>;
-  deleteNote: (noteId: number) => void;
   toggleNoteStarred: (noteId: number) => void;
-  toggleNotePinned: (noteId: number) => void;
-  toggleNoteBookmarked: (noteId: number) => void;
 };
-
-
 
 
 
@@ -44,10 +30,7 @@ export default function NoteCard({
   isPinned = false,
   selectedNotes,
   setSelectedNote,
-  deleteNote,
   toggleNoteStarred,
-  toggleNotePinned,
-  toggleNoteBookmarked,
 }: NoteCardProps) {
   const noteTagsArray = Array.isArray(note.tags) ? note.tags : [];
 
@@ -77,7 +60,7 @@ export default function NoteCard({
               )}
             </div>
           </div>
-          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+          <div className="flex items-center gap-1  transition-opacity">
             <Button
               variant="ghost"
               size="sm"
@@ -88,32 +71,7 @@ export default function NoteCard({
             >
               <Star className={`w-4 h-4 ${note.isStarred ? "fill-yellow-400 text-yellow-400" : ""}`} />
             </Button>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                <Button variant="ghost" size="sm">
-                  <MoreHorizontal className="w-4 h-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent>
-                <DropdownMenuItem onClick={() => toggleNotePinned(note.id)}>
-                  <Pin className="w-4 h-4 mr-2" />
-                  {note.isPinned ? "Unpin" : "Pin"}
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => toggleNoteBookmarked(note.id)}>
-                  <Bookmark className="w-4 h-4 mr-2" />
-                  {note.isBookmarked ? "Remove Bookmark" : "Bookmark"}
-                </DropdownMenuItem>
-                <DropdownMenuItem>
-                  <Share className="w-4 h-4 mr-2" />
-                  Share
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => deleteNote(note.id)}>
-                  <Trash2 className="w-4 h-4 mr-2" />
-                  Delete
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+
           </div>
         </div>
       </CardHeader>

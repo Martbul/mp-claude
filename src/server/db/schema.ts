@@ -104,6 +104,8 @@ export const note_folders_table = createTable("note_folders_table", {
 ]);
 
 export type DB_NoteFolderType = typeof note_folders_table.$inferSelect;
+
+
 export const calendar_events_table = createTable("calendar_events_table", {
   id: bigint("id", { mode: "number", unsigned: true }).primaryKey().autoincrement(),
   ownerId: text("owner_id").notNull(),
@@ -137,7 +139,6 @@ export const calendar_events_table = createTable("calendar_events_table", {
 
 export const settings_table = createTable("settings_table", {
   id: bigint("id", { mode: "number", unsigned: true }).primaryKey().autoincrement(),
-
   userId: text("user_id").notNull(),
 
   // Profile
@@ -153,9 +154,9 @@ export const settings_table = createTable("settings_table", {
   avatar: text("avatar"),
 
   // Appearance
-  theme: text("theme").default("system"), // "light", "dark", "system"
+  theme: text("theme").default("system"),
   accentColor: text("accent_color"),
-  fontSize: text("font_size").default("medium"), // "small", "medium", "large"
+  fontSize: text("font_size").default("medium"),
   compactMode: boolean("compact_mode").default(false),
   animations: boolean("animations").default(true),
   sidebarCollapsed: boolean("sidebar_collapsed").default(false),
@@ -173,10 +174,10 @@ export const settings_table = createTable("settings_table", {
   marketingEmails: boolean("marketing_emails").default(false),
   soundEnabled: boolean("sound_enabled").default(true),
   vibrationEnabled: boolean("vibration_enabled").default(true),
-  quietHours: json("quiet_hours"), // { enabled: boolean, start: string, end: string }
+  quietHours: json("quiet_hours"),
 
   // Privacy
-  profileVisibility: text("profile_visibility").default("friends"), // "public" | "friends" | "private"
+  profileVisibility: text("profile_visibility").default("friends"),
   showOnlineStatus: boolean("show_online_status").default(true),
   allowDirectMessages: boolean("allow_direct_messages").default(true),
   shareStudyStats: boolean("share_study_stats").default(false),
@@ -192,8 +193,8 @@ export const settings_table = createTable("settings_table", {
   learningAnalytics: boolean("learning_analytics").default(true),
   personalizedContent: boolean("personalized_content").default(true),
   voiceInteraction: boolean("voice_interaction").default(false),
-  creativityLevel: int("creativity_level").default(70), // stored as 0–100 (multiply by 100)
-  responseLength: text("response_length").default("medium"), // "short", "medium", "long"
+  creativityLevel: int("creativity_level").default(70),
+  responseLength: text("response_length").default("medium"),
   preferredLanguage: text("preferred_language").default("en"),
   contextAwareness: boolean("context_awareness").default(true),
 
@@ -215,6 +216,9 @@ export const settings_table = createTable("settings_table", {
   (t) => [
     index("user_index").on(t.userId),
   ])
+
+
+export type DB_SettingsType = typeof settings_table.$inferSelect;
 
 
 export const documents_table = createTable("documents_table", {
