@@ -76,6 +76,11 @@ export const QUERIES = {
     const userSettings = await db.select().from(settings_table).where(eq(settings_table.userId, userId))
     return userSettings[0]
   },
+
+  getCalendarEvents: async function(userId: string) {
+    const calendarEvents = await db.select().from(calendar_events_table).where(eq(calendar_events_table.ownerId, userId))
+    return calendarEvents
+  }
 }
 
 
@@ -91,9 +96,6 @@ export const MUTATIONS = {
   }) {
     return await db.insert(files_table).values({ ...input.file, ownerId: input.userId })
 
-  },
-  createnoteFolder: async function(input: { noteFolder: { name: string; color: string }; userId: string }) {
-    return await db.insert(note_folders_table).values({ ...input.noteFolder, noteCount: 0, ownerId: input.userId })
   },
 
   onboardUser: async function(userId: string) {

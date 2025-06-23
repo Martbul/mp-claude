@@ -54,78 +54,13 @@ import ListView from "./notesRenderView/ListView"
 import MindmapView from "./notesRenderView/MindmapView"
 import TimelineView from "./notesRenderView/TimelineView"
 import { cn } from "~/lib/utils"
+import type { NotesViewMode, SortBy } from "~/app/_types/types"
+import { COLOR_OPTIONS, noteColors, noteTemplates } from "~/app/_constants/constants"
 
-interface NoteTemplate {
-  id: string
-  name: string
-  description: string
-  content: string
-  category: string
-  icon: string
-}
-
-type ViewMode = "grid" | "list" | "kanban" | "timeline" | "mindmap"
-type SortBy = "updated" | "created" | "title" | "category" | "wordcount"
-
-const noteColors = [
-  "#FFE4E1",
-  "#E1F5FE",
-  "#E8F5E8",
-  "#FFF3E0",
-  "#F3E5F5",
-  "#E0F2F1",
-  "#FFF8E1",
-  "#FCE4EC",
-  "#E3F2FD",
-  "#F1F8E9",
-]
-
-const noteTemplates: NoteTemplate[] = [
-  {
-    id: "lecture",
-    name: "Lecture Notes",
-    description: "Template for taking lecture notes",
-    content:
-      "# Lecture: [Topic]\n\n**Date:** \n**Professor:** \n\n## Key Points\n\n## Details\n\n## Questions\n\n## Action Items",
-    category: "Academic",
-    icon: "📚",
-  },
-  {
-    id: "meeting",
-    name: "Meeting Notes",
-    description: "Template for meeting notes",
-    content:
-      "# Meeting: [Title]\n\n**Date:** \n**Attendees:** \n\n## Agenda\n\n## Discussion Points\n\n## Decisions Made\n\n## Next Steps",
-    category: "Professional",
-    icon: "🤝",
-  },
-  {
-    id: "research",
-    name: "Research Notes",
-    description: "Template for research documentation",
-    content:
-      "# Research: [Topic]\n\n**Research Question:** \n**Hypothesis:** \n\n## Literature Review\n\n## Methodology\n\n## Findings\n\n## Conclusions",
-    category: "Academic",
-    icon: "🔬",
-  },
-  {
-    id: "study-guide",
-    name: "Study Guide",
-    description: "Template for exam preparation",
-    content:
-      "# Study Guide: [Subject]\n\n**Exam Date:** \n**Format:** \n\n## Key Concepts\n\n## Formulas\n\n## Practice Problems\n\n## Review Schedule",
-    category: "Academic",
-    icon: "📖",
-  },
-]
-
-const COLOR_OPTIONS = [
-  "#E57373", "#64B5F6", "#81C784", "#FFD54F", "#BA68C8", "#4DB6AC", "#FF8A65",
-];
 export default function NotesPage(props: { notes: DB_NoteType[], notesFolders: DB_NoteFolderType[], userId: string }) {
   const [notes, setNotes] = useState<DB_NoteType[]>(Array.isArray(props.notes) ? props.notes : [])
   const [folders, setFolders] = useState<DB_NoteFolderType[]>(Array.isArray(props.notesFolders) ? props.notesFolders : [])
-  const [viewMode, setViewMode] = useState<ViewMode>("grid")
+  const [viewMode, setViewMode] = useState<NotesViewMode>("grid")
   const [sortBy, setSortBy] = useState<SortBy>("updated")
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc")
   const [searchTerm, setSearchTerm] = useState("")

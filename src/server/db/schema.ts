@@ -134,6 +134,9 @@ export const calendar_events_table = createTable("calendar_events_table", {
     index("date_index").on(t.date),
   ])
 
+export type DB_CalendarrType = typeof calendar_events_table.$inferSelect;
+
+
 
 
 

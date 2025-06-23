@@ -2,8 +2,8 @@
 
 import { and, desc, eq, sql } from "drizzle-orm"
 import { db } from "./db"
-import { files_table, note_folders_table, notes_table } from "./db/schema"
-import type { DB_NoteType } from "./db/schema"
+import { calendar_events_table, files_table, note_folders_table, notes_table } from "./db/schema"
+import type { DB_CalendarrType, DB_NoteType } from "./db/schema"
 import { auth } from "@clerk/nextjs/server";
 import { UTApi } from "uploadthing/server";
 import { cookies } from "next/headers";
@@ -11,7 +11,6 @@ import { error } from "console"
 
 //when using use server every export becomes an endpoing
 //alon with that a function can be used in the client
-//
 
 
 const utApi = new UTApi()
@@ -70,7 +69,7 @@ export async function createNote(noteData: {
       isBookmarked: false,
       createdAt: new Date(),
       updatedAt: new Date(),
-      author: "", // Could be pulled from session/user if needed
+      author: "",
       wordCount,
       readingTime: Math.ceil(wordCount / 200),
       priority: noteData.priority,
@@ -318,5 +317,65 @@ export async function deleteFolderAction(userId: string, folderId: string) {
   catch (error) {
     console.log("Filed to delete note", error)
     return { success: false, error: "Filed to delete note" }
+  }
+}
+
+
+
+
+export async function createCalendarEventAction(userId: string, eventData: {
+
+  title: string;
+  description: string | null;
+  date: string;
+  startTime: string | null;
+  endTime: string | null;
+  type: string;
+  priority: "low" | "medium" | "high";
+  location: string | null;
+  fileLinks: string[]; // or JSON-compatible type
+  recurring: string;
+  reminderMinutes: number | null;
+  completed?: boolean;
+  ownerId: string;
+}) {
+  try {
+    const newEvent: DB_CalendarrType = {
+      id: Date.now(),
+      ownerId: eventData.ownerId,
+      title: eventData.title || "Untitled Event",
+      description: eventData.description ?? null,
+      date: eventData.date,
+      startTime: eventData.startTime ?? null,
+      endTime: eventData.endTime ?? null,
+      type: eventData.type || "other",
+      priority: eventData.priority ?? "medium",
+      location: eventData.location ?? null,
+      fileLinks: eventData.fileLinks ?? [],
+      recurring: eventData.recurring ?? "none",
+      reminderMinutes: eventData.reminderMinutes ?? null,
+      completed: eventData.completed ?? false,
+      createdAt: new Date(),
+    };
+
+    await db.insert(calendar_events_table).values(newEvent);
+
+    //const latestEvent = await db
+    // .select()
+    //.from(calendar_events_table)
+    //.where(eq(calendar_events_table.ownerId, eventData.ownerId))
+    //.orderBy(desc(calendar_events_table.createdAt))
+    //.limit(1)
+    //.then(rows => rows[0]);
+
+    return {
+      success: true,
+    };
+  } catch (error) {
+    console.error("Failed to create calendar event:", error);
+    return {
+      success: false,
+      error: "Failed to create calendar event",
+    };
   }
 }
