@@ -26,6 +26,7 @@ import {
   Network,
   Trash,
   UndoIcon,
+  TrashIcon,
 } from "lucide-react"
 
 import { Button } from "~/components/ui/button"
@@ -39,18 +40,20 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
 } from "~/components/ui/dialog"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs"
 import type { DB_NoteFolderType, DB_NoteType } from "~/server/db/schema"
-import { createNote as createNoteAction, deleteNoteAction, pinNoteAction, starNoteAction, unpinNoteAction, unstarNoteAction } from "~/server/actions";
+import { createFolderAction, createNote as createNoteAction, deleteFolderAction, deleteNoteAction, pinNoteAction, starNoteAction, unpinNoteAction, unstarNoteAction } from "~/server/actions";
 import KanbanView from "./notesRenderView/KanbanView"
 import GridView from "./notesRenderView/GridView"
 import ListView from "./notesRenderView/ListView"
 import MindmapView from "./notesRenderView/MindmapView"
 import TimelineView from "./notesRenderView/TimelineView"
+import { cn } from "~/lib/utils"
 
 interface NoteTemplate {
   id: string
@@ -116,6 +119,9 @@ const noteTemplates: NoteTemplate[] = [
   },
 ]
 
+const COLOR_OPTIONS = [
+  "#E57373", "#64B5F6", "#81C784", "#FFD54F", "#BA68C8", "#4DB6AC", "#FF8A65",
+];
 export default function NotesPage(props: { notes: DB_NoteType[], notesFolders: DB_NoteFolderType[], userId: string }) {
   const [notes, setNotes] = useState<DB_NoteType[]>(Array.isArray(props.notes) ? props.notes : [])
   const [folders, setFolders] = useState<DB_NoteFolderType[]>(Array.isArray(props.notesFolders) ? props.notesFolders : [])
@@ -126,9 +132,12 @@ export default function NotesPage(props: { notes: DB_NoteType[], notesFolders: D
   const [selectedCategory, setSelectedCategory] = useState("all")
   const [selectedFolder, setSelectedFolder] = useState<string | null>(null)
   const [selectedNotes, setSelectedNotes] = useState<number[]>([])
-  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
+  const [isCreateNoteDialogOpen, setIsCreateNoteDialogOpen] = useState(false)
   const [selectedNote, setSelectedNote] = useState<DB_NoteType | null>(null)
   const [isEditing, setIsEditing] = useState(false)
+  const [newFolderName, setNewFolderName] = useState("");
+  const [newFolderColor, setNewFolderColor] = useState(COLOR_OPTIONS[0]);
+  const [isCreateFolderDialogOpen, setIsCreateFolderDialogOpen] = useState(false);
   const [newNote, setNewNote] = useState({
     title: "",
     content: "",
@@ -239,6 +248,7 @@ export default function NotesPage(props: { notes: DB_NoteType[], notesFolders: D
       )
     );
 
+
     try {
       const result = await (notes.find(n => n.id === noteId)?.isStarred
         ? unstarNoteAction(props.userId, noteId)
@@ -275,31 +285,146 @@ export default function NotesPage(props: { notes: DB_NoteType[], notesFolders: D
   };
 
 
+  const handleCreateFolder = async () => {
+    const trimmedName = newFolderName.trim();
+    if (!trimmedName) return;
+
+    const optimisticFolder: DB_NoteFolderType = {
+      id: `${Date.now()}`,
+      name: trimmedName,
+      color: newFolderColor ?? COLOR_OPTIONS[0],
+      noteCount: 0,
+      ownerId: props.userId,
+    };
+
+    // Optimistically update UI
+    setFolders((prev) => [...prev, optimisticFolder]);
+
+    setIsCreateFolderDialogOpen(false);
+    try {
+      const response = await createFolderAction(optimisticFolder);
+      if (!response.success) {
+        // Rollback UI update
+        setFolders((prev) => prev.filter((f) => f.id !== optimisticFolder.id));
+        console.error("Failed to create folder on server:", response.error);
+      }
+      setIsCreateFolderDialogOpen(false);
+    } catch (err) {
+      // Rollback on error
+      setFolders((prev) => prev.filter((f) => f.id !== optimisticFolder.id));
+      console.error("Failed to create folder:", err);
+    } finally {
+      // Clear input regardless of outcome
+      setNewFolderName("");
+      setNewFolderColor(COLOR_OPTIONS[0]);
+    }
+  };
+  //TODO: add editing of a note
+
+
+  const handleDeleteFolder = async (folderId: string) => {
+    const prevFolders = folders
+    const prevSelectedNotes = selectedNotes;
+
+    setFolders((prev) => prev.filter((f) => f.id !== folderId));
+    if (selectedFolder === folderId) setSelectedFolder(null);
+
+    setSelectedNotes((prev) =>
+      prev.filter((noteId) => {
+        const note = notes.find((n) => n.id === noteId);
+        return note?.folder !== folderId;
+      })
+    );
+
+    // Optional: also remove the notes themselves (optimistically)
+    setNotes((prev) => prev.filter((n) => n.folder !== folderId));
+    try {
+      const result = await deleteFolderAction(props.userId, folderId);
+
+      if (!result.success) {
+        // Revert on failure
+        setFolders(prevFolders);
+
+        setSelectedNotes(prevSelectedNotes)
+        console.error("Failed to delete folder", result.error);
+      }
+
+
+    } catch (error) {
+      // Revert on exception
+      setFolders(prevFolders);
+
+      setSelectedNotes(prevSelectedNotes)
+
+      console.error("Error deleting folder", error);
+    }
+  }
+
+
+
+
 
   const deleteNote = async (noteId: number) => {
     // Optimistically update UI
     const prevNotes = notes;
     const prevSelectedNotes = selectedNotes;
+    const deletedNote = notes.find(n => n.id === noteId);
+    const deletedNoteFolderId = deletedNote?.folder;
 
     setNotes(prev => prev.filter(note => note.id !== noteId));
     setSelectedNotes(prev => prev.filter(id => id !== noteId));
-    setSelectedNote(null)
+    setSelectedNote(null);
+
+    // Optimistically decrement folder note count
+    if (deletedNoteFolderId) {
+      setFolders(prev =>
+        prev.map(folder =>
+          folder.id === deletedNoteFolderId
+            ? { ...folder, noteCount: Math.max((folder.noteCount ?? 1) - 1, 0) }
+            : folder
+        )
+      );
+    }
+
     try {
       const result = await deleteNoteAction(props.userId, noteId);
 
       if (!result.success) {
-        // Revert change on failure
+        // Revert on failure
         setNotes(prevNotes);
         setSelectedNotes(prevSelectedNotes);
+
+        if (deletedNoteFolderId) {
+          setFolders(prev =>
+            prev.map(folder =>
+              folder.id === deletedNoteFolderId
+                ? { ...folder, noteCount: (folder.noteCount ?? 0) + 1 }
+                : folder
+            )
+          );
+        }
+
         console.error("Failed to delete note", result.error);
       }
     } catch (error) {
-      // Revert optimistic update on exception
+      // Revert on exception
       setNotes(prevNotes);
       setSelectedNotes(prevSelectedNotes);
+
+      if (deletedNoteFolderId) {
+        setFolders(prev =>
+          prev.map(folder =>
+            folder.id === deletedNoteFolderId
+              ? { ...folder, noteCount: (folder.noteCount ?? 0) + 1 }
+              : folder
+          )
+        );
+      }
+
       console.error("Error deleting note", error);
     }
   };
+
 
   const createNote = async () => {
     const wordCount = newNote.content.split(" ").filter(word => word.length > 0).length;
@@ -369,7 +494,7 @@ export default function NotesPage(props: { notes: DB_NoteType[], notesFolders: D
       folder: "",
     });
 
-    setIsCreateDialogOpen(false);
+    setIsCreateNoteDialogOpen(false);
 
     // Ensure proper return type
     type CreateNoteResult =
@@ -410,7 +535,7 @@ export default function NotesPage(props: { notes: DB_NoteType[], notesFolders: D
           );
         }
 
-        setIsCreateDialogOpen(true);
+        setIsCreateNoteDialogOpen(true);
       }
     } catch (error) {
       setNotes(prev => prev.filter(note => note.id !== optimisticNote.id));
@@ -424,7 +549,7 @@ export default function NotesPage(props: { notes: DB_NoteType[], notesFolders: D
         priority: noteDataToSave.priority,
         folder: noteDataToSave.folder,
       });
-      setIsCreateDialogOpen(true);
+      setIsCreateNoteDialogOpen(true);
     }
   };
 
@@ -454,7 +579,7 @@ export default function NotesPage(props: { notes: DB_NoteType[], notesFolders: D
               <Download className="w-4 h-4 mr-2" />
               Export
             </Button>
-            <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+            <Dialog open={isCreateNoteDialogOpen} onOpenChange={setIsCreateNoteDialogOpen}>
               <DialogTrigger asChild>
                 <Button>
                   <Plus className="w-4 h-4 mr-2" />
@@ -566,7 +691,7 @@ export default function NotesPage(props: { notes: DB_NoteType[], notesFolders: D
                       </div>
                     </div>
                     <div className="flex justify-end gap-2">
-                      <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
+                      <Button variant="outline" onClick={() => setIsCreateNoteDialogOpen(false)}>
                         Cancel
                       </Button>
                       <Button onClick={() => createNote()}>
@@ -745,11 +870,54 @@ export default function NotesPage(props: { notes: DB_NoteType[], notesFolders: D
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          <div className="space-y-4">
+          <div className="space-y-4"
+          >
+
             <Card>
-              <CardHeader>
+              <CardHeader className="flex items-center justify-between">
                 <CardTitle className="text-lg">Folders</CardTitle>
+                <Dialog open={isCreateFolderDialogOpen} onOpenChange={setIsCreateFolderDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button size="sm" variant="outline">+ Add</Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Create New Folder</DialogTitle>
+                    </DialogHeader>
+
+                    <Input
+                      placeholder="Folder name"
+                      value={newFolderName}
+                      onChange={(e) => setNewFolderName(e.target.value)}
+                      className="mb-4"
+                    />
+
+                    <div className="space-y-1">
+                      <div className="text-sm font-medium">Choose color</div>
+                      <div className="flex gap-2 mt-1">
+                        {COLOR_OPTIONS.map((color) => (
+                          <button
+                            key={color}
+                            onClick={() => setNewFolderColor(color)}
+                            className={cn(
+                              "w-6 h-6 rounded-full border-2",
+                              color === newFolderColor ? "border-black" : "border-transparent"
+                            )}
+                            style={{ backgroundColor: color }}
+                          />
+                        ))}
+                      </div>
+                    </div>
+
+                    <DialogFooter className="mt-4">
+                      <Button onClick={handleCreateFolder}
+                        disabled={!newFolderName.trim()}
+                      >Create</Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
               </CardHeader>
+
               <CardContent>
                 <div className="space-y-2">
                   <Button
@@ -759,27 +927,66 @@ export default function NotesPage(props: { notes: DB_NoteType[], notesFolders: D
                   >
                     <FolderIcon className="w-4 h-4 mr-2" />
                     All Notes
-                    <Badge variant="secondary" className="ml-auto">
-                      {notes.length}
-                    </Badge>
+                    <Badge variant="secondary" className="ml-auto">{notes.length}</Badge>
                   </Button>
+
                   {folders.map((folder) => (
-                    <Button
-                      key={folder.id}
-                      variant={selectedFolder === folder.id ? "default" : "ghost"}
-                      className="w-full justify-start"
-                      onClick={() => setSelectedFolder(folder.id)}
-                    >
-                      <div className="w-4 h-4 rounded mr-2" style={{ backgroundColor: folder.color }} />
-                      {folder.name}
-                      <Badge variant="secondary" className="ml-auto">
-                        {folder.noteCount}
-                      </Badge>
-                    </Button>
+                    <div key={folder.id} className="flex items-center space-x-2">
+                      <Button
+                        variant={selectedFolder === folder.id ? "default" : "ghost"}
+                        className="flex-1 justify-start"
+                        onClick={() => setSelectedFolder(folder.id)}
+                      >
+                        <div
+                          className="w-4 h-4 rounded mr-2"
+                          style={{ backgroundColor: folder.color }}
+                        />
+                        {folder.name}
+                        <Badge variant="secondary" className="ml-auto">
+                          {folder.noteCount}
+                        </Badge>
+                      </Button>
+
+                      <Dialog>
+                        <DialogTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                          >
+                            <TrashIcon className="w-4 h-4 text-red-500" />
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent>
+                          <DialogHeader>
+                            <DialogTitle>Delete Folder?</DialogTitle>
+                          </DialogHeader>
+                          <p className="text-sm text-muted-foreground">
+                            This will permanently remove the folder and its notes.
+                          </p>
+                          <DialogFooter className="mt-4">
+                            <Button variant="outline" >
+                              Cancel
+                            </Button>
+                            <Button
+                              variant="destructive"
+                              onClick={() => handleDeleteFolder(folder.id)}
+                            >
+                              Delete
+                            </Button>
+                          </DialogFooter>
+                        </DialogContent>
+                      </Dialog>
+                    </div>
                   ))}
                 </div>
               </CardContent>
             </Card>
+
+
+
+
+
+
 
             <Card>
               <CardHeader>
@@ -875,7 +1082,7 @@ export default function NotesPage(props: { notes: DB_NoteType[], notesFolders: D
                       ? "Try adjusting your filters or search terms"
                       : "Create your first note to get started"}
                   </p>
-                  <Button onClick={() => setIsCreateDialogOpen(true)}>
+                  <Button onClick={() => setIsCreateNoteDialogOpen(true)}>
                     <Plus className="w-4 h-4 mr-2" />
                     Create New Note
                   </Button>

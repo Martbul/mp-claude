@@ -87,22 +87,13 @@ export async function createNote(noteData: {
       folder: noteData.folder,
     };
 
-    // Insert into DB without .returning() if using MySQL/SingleStore
-    const creaatedNote = await db.insert(notes_table).values(newNote);
-    // Optionally: query inserted note by last inserted ID if needed
-    // This assumes you have access to LAST_INSERT_ID() or similar behavior
-    // Otherwise just return success without full note details
-    //
-
-
-
-
+    await db.insert(notes_table).values(newNote);
 
     const lastUserNote = await db
       .select()
       .from(notes_table)
-      .where(eq(notes_table.ownerId, noteData.ownerId)) // userId: string
-      .orderBy(desc(notes_table.createdAt))   // Or use desc(notes_table.id)
+      .where(eq(notes_table.ownerId, noteData.ownerId))
+      .orderBy(desc(notes_table.createdAt))
       .limit(1)
       .then(rows => rows[0]);
 
@@ -122,7 +113,7 @@ export async function createNote(noteData: {
 
     return {
       success: true,
-      data: lastUserNote, // Replace with lookup if you want to return full note
+      data: lastUserNote,
     };
   } catch (error) {
     console.error("Failed to create note:", error);
@@ -256,16 +247,76 @@ export async function unpinNoteAction(userId: string, noteId: number) {
 
 export async function deleteNoteAction(userId: string, noteId: number) {
   try {
+
+    const [noteForDeletion] = await db
+      .select()
+      .from(notes_table)
+      .where(eq(notes_table.id, noteId));
+
+    if (noteForDeletion?.folder) {
+      await db
+        .update(note_folders_table)
+        .set({
+          noteCount: sql`${note_folders_table.noteCount} - 1`,
+        })
+        .where(
+          and(
+            eq(note_folders_table.id, noteForDeletion.folder),
+            eq(note_folders_table.ownerId, noteForDeletion.ownerId)
+          )
+        );
+    }
+
+
     await db.delete(notes_table).where(and(
       eq(notes_table.id, Number(noteId)),
       eq(notes_table.ownerId, userId)
-
     ));
 
     return { success: true }
 
   } catch (error) {
     console.log("Failed to delete note", error)
+    return { success: false, error: "Filed to delete note" }
+  }
+}
+
+
+
+export async function createFolderAction(folder: {
+  id: string;
+  name: string;
+  color: string;
+  noteCount: number;
+  ownerId: string;
+}) {
+  try {
+    await db.insert(note_folders_table).values({
+      id: folder.id,
+      name: folder.name,
+      color: folder.color,
+      noteCount: folder.noteCount,
+      ownerId: folder.ownerId,
+    });
+
+    return { success: true };
+  } catch (error) {
+    console.error("Failed to create folder", error);
+    return { success: false, error: "Failed to create folder" };
+  }
+}
+
+export async function deleteFolderAction(userId: string, folderId: string) {
+  try {
+
+    await db.delete(note_folders_table).where(and(eq(note_folders_table.id, folderId), eq(note_folders_table.ownerId, userId)))
+
+    await db.delete(notes_table).where(and(eq(notes_table.folder, folderId), eq(notes_table.ownerId, userId)))
+
+    return { success: true }
+  }
+  catch (error) {
+    console.log("Filed to delete note", error)
     return { success: false, error: "Filed to delete note" }
   }
 }

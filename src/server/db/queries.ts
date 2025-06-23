@@ -92,84 +92,87 @@ export const MUTATIONS = {
     return await db.insert(files_table).values({ ...input.file, ownerId: input.userId })
 
   },
+  createnoteFolder: async function(input: { noteFolder: { name: string; color: string }; userId: string }) {
+    return await db.insert(note_folders_table).values({ ...input.noteFolder, noteCount: 0, ownerId: input.userId })
+  },
 
   onboardUser: async function(userId: string) {
- // Create default settings
-  await db.insert(settings_table).values({
-    userId,
-    
-    // Profile (empty)
-    name: null,
-    email: null,
-    phone: null,
-    bio: null,
-    institution: null,
-    major: null,
-    graduationYear: null,
-    location: null,
-    timezone: null,
-    avatar: null,
+    // Create default settings
+    await db.insert(settings_table).values({
+      userId,
 
-    // Appearance
-    theme: "system",
-    accentColor: null,
-    fontSize: "medium",
-    compactMode: false,
-    animations: true,
-    sidebarCollapsed: false,
-    showAvatars: true,
-    colorBlindMode: false,
+      // Profile (empty)
+      name: null,
+      email: null,
+      phone: null,
+      bio: null,
+      institution: null,
+      major: null,
+      graduationYear: null,
+      location: null,
+      timezone: null,
+      avatar: null,
 
-    // Notifications
-    emailNotifications: true,
-    pushNotifications: true,
-    desktopNotifications: false,
-    studyReminders: true,
-    deadlineAlerts: true,
-    collaborationUpdates: true,
-    weeklyDigest: true,
-    marketingEmails: false,
-    soundEnabled: true,
-    vibrationEnabled: true,
-    quietHours: null,
+      // Appearance
+      theme: "system",
+      accentColor: null,
+      fontSize: "medium",
+      compactMode: false,
+      animations: true,
+      sidebarCollapsed: false,
+      showAvatars: true,
+      colorBlindMode: false,
 
-    // Privacy
-    profileVisibility: "friends",
-    showOnlineStatus: true,
-    allowDirectMessages: true,
-    shareStudyStats: false,
-    dataCollection: true,
-    analyticsOptIn: true,
-    twoFactorAuth: false,
-    sessionTimeout: 30,
+      // Notifications
+      emailNotifications: true,
+      pushNotifications: true,
+      desktopNotifications: false,
+      studyReminders: true,
+      deadlineAlerts: true,
+      collaborationUpdates: true,
+      weeklyDigest: true,
+      marketingEmails: false,
+      soundEnabled: true,
+      vibrationEnabled: true,
+      quietHours: null,
 
-    // AI
-    aiAssistantEnabled: true,
-    autoSuggestions: true,
-    smartNotifications: true,
-    learningAnalytics: true,
-    personalizedContent: true,
-    voiceInteraction: false,
-    creativityLevel: 70,
-    responseLength: "medium",
-    preferredLanguage: "en",
-    contextAwareness: true,
+      // Privacy
+      profileVisibility: "friends",
+      showOnlineStatus: true,
+      allowDirectMessages: true,
+      shareStudyStats: false,
+      dataCollection: true,
+      analyticsOptIn: true,
+      twoFactorAuth: false,
+      sessionTimeout: 30,
 
-    // Study
-    defaultStudyDuration: 25,
-    breakDuration: 5,
-    longBreakInterval: 4,
-    focusMode: true,
-    backgroundSounds: false,
-    pomodoroEnabled: true,
-    goalTracking: true,
-    progressSharing: false,
-    studyStreaks: true,
-    difficultyAdaptation: true,
-    spacedRepetition: true,
+      // AI
+      aiAssistantEnabled: true,
+      autoSuggestions: true,
+      smartNotifications: true,
+      learningAnalytics: true,
+      personalizedContent: true,
+      voiceInteraction: false,
+      creativityLevel: 70,
+      responseLength: "medium",
+      preferredLanguage: "en",
+      contextAwareness: true,
 
-    createdAt: new Date()
-  });
+      // Study
+      defaultStudyDuration: 25,
+      breakDuration: 5,
+      longBreakInterval: 4,
+      focusMode: true,
+      backgroundSounds: false,
+      pomodoroEnabled: true,
+      goalTracking: true,
+      progressSharing: false,
+      studyStreaks: true,
+      difficultyAdaptation: true,
+      spacedRepetition: true,
+
+      createdAt: new Date()
+    });
 
 
     //create noteFolders
