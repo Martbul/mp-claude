@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, type FC } from "react"
 import {
   CalendarIcon,
   Plus,
@@ -57,10 +57,12 @@ interface CalendarEvent {
   reminderMinutes?: number
   completed?: boolean
 }
+type CalendarPageProps = {
+  userId: string;
+  calendarEvents: DB_CalendarrType[];
+};
 
-
-
-export default function CalendarPage(props: { userId: string, calendarEvents: DB_CalendarrType[] }) {
+const CalendarPage: FC<CalendarPageProps> = (props) => {
   const [currentDate, setCurrentDate] = useState(new Date())
   const [viewMode, setViewMode] = useState<CalendarViewMode>("month")
   const [events, setEvents] = useState<DB_CalendarrType[]>(Array.isArray(props.calendarEvents) ? props.calendarEvents : [])
@@ -641,3 +643,6 @@ export default function CalendarPage(props: { userId: string, calendarEvents: DB
     )
   }
 }
+
+
+export default CalendarPage
