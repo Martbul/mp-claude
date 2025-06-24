@@ -324,7 +324,6 @@ export async function deleteFolderAction(userId: string, folderId: string) {
 
 
 export async function createCalendarEventAction(userId: string, eventData: {
-
   title: string;
   description: string | null;
   date: string;
@@ -333,7 +332,7 @@ export async function createCalendarEventAction(userId: string, eventData: {
   type: string;
   priority: "low" | "medium" | "high";
   location: string | null;
-  fileLinks: string[]; // or JSON-compatible type
+  fileLinks: string[];
   recurring: string;
   reminderMinutes: number | null;
   completed?: boolean;
@@ -360,16 +359,17 @@ export async function createCalendarEventAction(userId: string, eventData: {
 
     await db.insert(calendar_events_table).values(newEvent);
 
-    //const latestEvent = await db
-    // .select()
-    //.from(calendar_events_table)
-    //.where(eq(calendar_events_table.ownerId, eventData.ownerId))
-    //.orderBy(desc(calendar_events_table.createdAt))
-    //.limit(1)
-    //.then(rows => rows[0]);
+    const latestEvent = await db
+      .select()
+      .from(calendar_events_table)
+      .where(eq(calendar_events_table.ownerId, eventData.ownerId))
+      .orderBy(desc(calendar_events_table.createdAt))
+      .limit(1)
+      .then(rows => rows[0]);
 
     return {
       success: true,
+      data: latestEvent
     };
   } catch (error) {
     console.error("Failed to create calendar event:", error);
@@ -378,4 +378,49 @@ export async function createCalendarEventAction(userId: string, eventData: {
       error: "Failed to create calendar event",
     };
   }
+}
+
+
+export async function deleteCalendarEventAction(userId: string, eventId: number) {
+  try {
+
+    await db.delete(calendar_events_table).where(and(eq(calendar_events_table.id, eventId), eq(calendar_events_table.ownerId, userId)))
+    return { success: true }
+  }
+  catch (error) {
+    console.log("Filed to delete note", error)
+    return { success: false, error: "Filed to delete note" }
+
+  }
+
+}
+
+export async function toggleCalendarEventCompletionAction(userId: string, eventId: number, newCompleted: boolean) {
+  try {
+
+    await db
+      .update(calendar_events_table)
+      .set({ completed: newCompleted })
+      .where(and(
+        eq(calendar_events_table.id, Number(eventId)),
+        eq(calendar_events_table.ownerId, userId)
+      ));
+
+    const [updatedCalendarEvent] = await db
+      .select()
+      .from(calendar_events_table)
+      .where(eq(calendar_events_table.id, eventId));
+
+    if (!updatedCalendarEvent) {
+      return { success: false, error: "Caledar event not found after update" };
+    }
+
+
+    return { success: true, data: updatedCalendarEvent };
+
+  } catch (error) {
+    console.log("Failed to toggleCalendar completed event")
+    return { success: false, error: "Failed to toggle completetion of calendar event" }
+  }
+
 }
