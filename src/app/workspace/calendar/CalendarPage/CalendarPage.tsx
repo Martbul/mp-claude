@@ -34,7 +34,7 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~/components/ui/select"
 import { Checkbox } from "~/components/ui/checkbox"
 import type { DB_CalendarrType } from "~/server/db/schema"
-import { createCalendarEventAction } from "~/server/actions"
+import { createCalendarEventAction, deleteCalendarEventAction, toggleCalendarEventCompletionAction } from "~/server/actions"
 import MonthView from "../calendarViews/MonthView"
 import WeekView from "../calendarViews/WeekView"
 import DayView from "../calendarViews/DayView"
@@ -161,13 +161,13 @@ export default function CalendarPage(props: { userId: string, calendarEvents: DB
     })
   }, [events, searchTerm, filterType])
 
-
   const handleAddEvent = async () => {
-    const prevEvents = events
+    const prevEvents = events;
 
     if (newEvent.title && newEvent.date) {
+      const tempId = Date.now();
       const eventForDB = {
-        id: Date.now(),
+        id: tempId, // Temporary ID
         createdAt: new Date(),
 
         ownerId: props.userId,
@@ -189,6 +189,8 @@ export default function CalendarPage(props: { userId: string, calendarEvents: DB
         reminderMinutes: newEvent.reminderMinutes ?? null,
         completed: false,
       };
+
+      // Optimistic update
       setEvents((prev) => [...prev, eventForDB]);
       setIsEventDialogOpen(false);
 
@@ -199,47 +201,95 @@ export default function CalendarPage(props: { userId: string, calendarEvents: DB
       });
 
       try {
-
         const result = await createCalendarEventAction(props.userId, eventForDB);
 
         if (!result.success) {
           // Revert on failure
           setEvents(prevEvents);
           setIsEventDialogOpen(true);
-
-
           console.error("Failed to create new calendar event", result.error);
+          return;
+        }
+
+        if (result.data) {
+          // Replace the optimistic event with the actual one from the backend
+          setEvents((prev) =>
+            prev.map((event) => (event.id === tempId ? result.data : event))
+          );
         }
 
       } catch (error) {
-
         // Revert on exception
         setEvents(prevEvents);
-
         setIsEventDialogOpen(true);
-
         console.error("Error to create new calendar event", error);
       }
     }
   };
 
 
-  // Delete event
-  const handleDeleteEvent = (eventId: number) => {
-    setEvents(events.filter((event) => event.id !== eventId))
-  }
 
-  // Toggle event completion
-  const toggleEventCompletion = (eventId: number) => {
-    setEvents(events.map((event) => (event.id === eventId ? { ...event, completed: !event.completed } : event)))
-  }
+  const handleDeleteEvent = async (eventId: number) => {
+    const prevEvents = events;
+    const updatedEvents = events.filter((event) => event.id !== eventId);
 
+    // Optimistically update UI
+    setEvents(updatedEvents);
+    setSelectedEvent(null);
+
+    try {
+      const result = await deleteCalendarEventAction(props.userId, eventId);
+
+      if (!result.success) {
+        // Revert on failure
+        setEvents(prevEvents);
+        console.error("Failed to delete calendar event", result.error);
+      }
+    } catch (error) {
+      // Revert on exception
+      setEvents(prevEvents);
+      console.error("Error deleting calendar event", error);
+    }
+  };
+
+
+  const toggleEventCompletion = async (eventId: number) => {
+    const prevEvents = events;
+    const eventToToggle = events.find((event) => event.id === eventId);
+
+    if (!eventToToggle) return;
+
+    const newCompleted = !eventToToggle.completed;
+
+    // Optimistically update
+    setEvents(events.map((event) =>
+      event.id === eventId ? { ...event, completed: newCompleted } : event
+    ));
+
+    setSelectedEvent(null);
+    try {
+      const result = await toggleCalendarEventCompletionAction(props.userId, eventId, newCompleted);
+
+      if (!result.success) {
+        setEvents(prevEvents);
+        console.error("Failed to toggle completion", result.error);
+      } else if (result.data) {
+        setEvents(events =>
+          events.map((event) =>
+            event.id === eventId ? result.data : event
+          )
+        );
+      }
+    } catch (error) {
+      setEvents(prevEvents);
+      console.error("Error toggling event completion", error);
+    }
+  };
 
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="max-w-7xl mx-auto space-y-6">
-        {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
             <h1 className="text-3xl font-bold flex items-center gap-2">
@@ -451,7 +501,6 @@ export default function CalendarPage(props: { userId: string, calendarEvents: DB
           </div>
         </div>
 
-        {/* Calendar Views */}
         <Card>
           <CardContent className="p-6">
             {viewMode === "month" && <MonthView currentDate={currentDate} days={monthDays} navigate={navigate} setCurrentDate={setCurrentDate} setSelectedEvent={setSelectedEvent} getEventsForDate={getEventsForDate} />}
@@ -462,7 +511,6 @@ export default function CalendarPage(props: { userId: string, calendarEvents: DB
 
 
 
-        {/* Event Details Dialog */}
         {selectedEvent && (
           <Dialog open={!!selectedEvent} onOpenChange={() => setSelectedEvent(null)}>
             <DialogContent>
@@ -558,9 +606,8 @@ export default function CalendarPage(props: { userId: string, calendarEvents: DB
           </Dialog>
         )}
 
-        {/* Upcoming Events Sidebar */}
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          <div className="lg:col-span-3">{/* Main calendar content is above */}</div>
+          <div className="lg:col-span-3"></div>
           <div className="space-y-4">
             <Card>
               <CardHeader>
