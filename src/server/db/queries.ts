@@ -1,6 +1,6 @@
 import "server-only";
 
-import { calendar_events_table, type DB_NoteType, documents_table, files_table, folders_table, notes_table, type DB_FileType, note_folders_table, DB_NoteFolderType, settings_table } from "~/server/db/schema";
+import { calendar_events_table, type DB_NoteType, documents_table, files_table, folders_table, notes_table, type DB_FileType, note_folders_table, DB_NoteFolderType, settings_table, document_folders_table } from "~/server/db/schema";
 import { db } from "~/server/db";
 import { and, desc, eq, isNull } from "drizzle-orm";
 
@@ -44,7 +44,11 @@ export const QUERIES = {
 
   getDocuments: async function(userId: string) {
     const documents = await db.select().from(documents_table).where(eq(documents_table.ownerId, userId))
-    return documents[0]
+    return documents
+  },
+  getDocumentFolders: async function(userId: string) {
+    const documentFolders = await db.select().from(document_folders_table).where(eq(document_folders_table.ownerId, userId))
+    return documentFolders
   },
   getMax5Documents: async function(userId: string) {
     const documents = await db
@@ -224,6 +228,59 @@ export const MUTATIONS = {
         name: "Literature",
         color: "#E91E63",
         noteCount: 0, // Changed from note_count
+        ownerId: userId, // Changed from owner_id
+        createdAt: new Date(), // Changed from created_at
+      },
+    ]);
+
+
+
+    await db.insert(document_folders_table).values([
+      {
+        id: "math1",
+        name: "Mathematics",
+        color: "#2196F3",
+        documentCount: 0, // Changed from note_count
+        ownerId: userId, // Changed from owner_id
+        createdAt: new Date(), // Changed from created_at
+      },
+      {
+        id: "physics1",
+        name: "Physics",
+        color: "#4CAF50",
+        documentCount: 0, // Changed from note_count
+        ownerId: userId, // Changed from owner_id
+        createdAt: new Date(), // Changed from created_at
+      },
+      {
+        id: "chemistry1",
+        name: "Chemistry",
+        color: "#FF9800",
+        documentCount: 0, // Changed from note_count
+        ownerId: userId, // Changed from owner_id
+        createdAt: new Date(), // Changed from created_at
+      },
+      {
+        id: "history1",
+        name: "History",
+        color: "#9C27B0",
+        documentCount: 0, // Changed from note_count
+        ownerId: userId, // Changed from owner_id (also fixed the variable name)
+        createdAt: new Date(), // Changed from created_at
+      },
+      {
+        id: "informatics1",
+        name: "Informatics",
+        color: "#00BCD4",
+        documentCount: 0, // Changed from note_count
+        ownerId: userId, // Changed from owner_id AND fixed variable name (was ownerId)
+        createdAt: new Date(), // Changed from created_at
+      },
+      {
+        id: "literature1",
+        name: "Literature",
+        color: "#E91E63",
+        documentCount: 0, // Changed from note_count
         ownerId: userId, // Changed from owner_id
         createdAt: new Date(), // Changed from created_at
       },

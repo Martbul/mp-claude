@@ -1,3 +1,14 @@
+import {
+	FileText,
+	FileImage,
+	FileVideo,
+	FileAudio,
+	FileIcon as FilePdf,
+	FileSpreadsheet,
+	FileCode,
+} from "lucide-react"
+
+
 import { type NoteTemplate } from "../_types/types"
 
 export const eventTypeColors = {
@@ -14,11 +25,6 @@ export const priorityColors = {
 	medium: "border-l-yellow-400",
 	high: "border-l-red-400",
 }
-
-
-
-
-
 
 export const noteColors = [
 	"#FFE4E1",
@@ -75,3 +81,34 @@ export const noteTemplates: NoteTemplate[] = [
 export const COLOR_OPTIONS = [
 	"#E57373", "#64B5F6", "#81C784", "#FFD54F", "#BA68C8", "#4DB6AC", "#FF8A65",
 ]
+
+
+export const documentFileTypeIcons = {
+	pdf: FilePdf,
+	docx: FileText,
+	pptx: FileImage,
+	xlsx: FileSpreadsheet,
+	txt: FileText,
+	image: FileImage,
+	video: FileVideo,
+	audio: FileAudio,
+	code: FileCode,
+	other: FileText,
+}
+
+
+
+export const documentStatusColors = {
+	synced: "text-green-600",
+	syncing: "text-yellow-600",
+	offline: "text-gray-600",
+	error: "text-red-600",
+}
+
+export const documentDifficultyColors = {
+	beginner: "bg-green-100 text-green-800",
+	intermediate: "bg-yellow-100 text-yellow-800",
+	advanced: "bg-red-100 text-red-800",
+}
+
+

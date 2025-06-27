@@ -225,12 +225,13 @@ export type DB_SettingsType = typeof settings_table.$inferSelect;
 
 
 export const documents_table = createTable("documents_table", {
-  id: text("id").primaryKey(), // string ID like "1", from Date.now().toString()
+  id: bigint("id", { mode: "number", unsigned: true }).primaryKey().autoincrement(),
   name: text("name").notNull(),
   type: text("type").notNull(), // e.g., pdf, docx, etc.
   size: int("size").notNull(),
   ownerId: text("owner_id").notNull(),
 
+  url: text("url").notNull(),
   dateCreated: timestamp("date_created").notNull().defaultNow(),
   dateModified: timestamp("date_modified").notNull().defaultNow(),
 
@@ -262,17 +263,30 @@ export const documents_table = createTable("documents_table", {
   readingTime: int("reading_time"),
   difficulty: text("difficulty"), // beginner, intermediate, advanced
   subject: text("subject"),
+  folder: text("folder"),
 },
   (t) => {
     return [
       index("path_index").on(t.path),
-      index("author_index").on(t.ownerId),
       index("status_index").on(t.status),
       index("category_index").on(t.category),
     ]
   }
 )
 
+export type DB_DocumentType = typeof documents_table.$inferSelect;
 
+export const document_folders_table = createTable("document_folders_table", {
+  id: bigint("id", { mode: "number", unsigned: true }).primaryKey().autoincrement(),
+  name: text("name").notNull(),
+  color: text("color").notNull(),
+  documentCount: int("document_count").notNull(),
+  ownerId: text("owner_id").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (t) => [
+  index("owner_id_index").on(t.ownerId),
+]);
+
+export type DB_DocumentFolderType = typeof document_folders_table.$inferSelect;
 
 

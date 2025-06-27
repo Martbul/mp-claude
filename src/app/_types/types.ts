@@ -16,3 +16,7 @@ export type NotesViewMode = "grid" | "list" | "kanban" | "timeline" | "mindmap"
 export type SortBy = "updated" | "created" | "title" | "category" | "wordcount"
 
 
+export type DocumentViewMode = "grid" | "list" | "timeline" | "kanban"
+export type DocumentSortBy = "name" | "date" | "size" | "type" | "views" | "ai-score"
+
+
