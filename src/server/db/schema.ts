@@ -274,8 +274,11 @@ export const documents_table = createTable("documents_table", {
   }
 )
 
-export type DB_DocumentType = typeof documents_table.$inferSelect;
 
+export type DB_DocumentType = Omit<typeof documents_table.$inferSelect, "type" | "status"> & {
+  type: FileTypeKey;
+  status: StatusKey;
+};
 export const document_folders_table = createTable("document_folders_table", {
   id: bigint("id", { mode: "number", unsigned: true }).primaryKey().autoincrement(),
   name: text("name").notNull(),
@@ -290,3 +293,23 @@ export const document_folders_table = createTable("document_folders_table", {
 export type DB_DocumentFolderType = typeof document_folders_table.$inferSelect;
 
 
+
+
+export const FILE_TYPE_KEYS = [
+  "pdf",
+  "docx",
+  "pptx",
+  "xlsx",
+  "txt",
+  "image",
+  "video",
+  "audio",
+  "code",
+  "other",
+] as const;
+
+export type FileTypeKey = (typeof FILE_TYPE_KEYS)[number];
+
+
+export const STATUS_KEYS = ["synced", "syncing", "offline", "error"] as const;
+export type StatusKey = (typeof STATUS_KEYS)[number];

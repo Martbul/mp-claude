@@ -15,11 +15,9 @@ import {
   Share2,
   Eye,
   Trash2,
-  FolderPlus,
   Tag,
   Clock,
   Users,
-  Lock,
   Move,
   SortAsc,
   SortDesc,
@@ -29,18 +27,13 @@ import {
   Sparkles,
   Target,
   TrendingUp,
-  FileImage,
-  FileVideo,
-  FileAudio,
-  FileIcon as FilePdf,
-  FileSpreadsheet,
-  FileCode,
   FolderIcon,
-  FolderOpen,
   CloudUpload,
   HardDrive,
+  TrashIcon,
 } from "lucide-react"
 
+import { useRouter } from "next/navigation";
 import { Button } from "~/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card"
 import { Input } from "~/components/ui/input"
@@ -52,18 +45,34 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
 } from "~/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~/components/ui/select"
-import { Checkbox } from "~/components/ui/checkbox"
-import { redirect } from "next/navigation"
 import { DB_DocumentFolderType, DB_DocumentType } from "~/server/db/schema"
 import type { DocumentSortBy, DocumentViewMode } from "~/app/_types/types"
 import { formatFileSize } from "../utils/utils"
 import DocumentsGridView from "../documentRenderViews/GridView"
+import { COLOR_OPTIONS, documentDifficultyColors, documentFileTypeIcons } from "~/app/_constants/constants"
+import { cn } from "~/lib/utils"
+import { UploadDropzone } from "~/components/uploadthing"
+import DocumentsKanbanView from "../documentRenderViews/KanbanView";
+import DocumentsTimelineView from "../documentRenderViews/TimeLineView";
+import DocumentsListView from "../documentRenderViews/ListView";
 
+const categories = [
+  'Academic', 'Business', 'Personal', 'Research', 'Legal', 'Medical',
+  'Technical', 'Creative', 'Financial', 'Educational', 'Other'
+]
+
+const subjects = [
+  'Mathematics', 'Science', 'Technology', 'Literature', 'History',
+  'Business', 'Art', 'Music', 'Sports', 'Health', 'Finance', 'Other'
+]
+
+const difficulties = ['Beginner', 'Intermediate', 'Advanced']
 export default function DocumentsPage(props: { documents: DB_DocumentType[], documentFolders: DB_DocumentFolderType[], userId: string }) {
   const [documents, setDocuments] = useState<DB_DocumentType[]>(Array.isArray(props.documents) ? props.documents : [])
   const [folders, setFolders] = useState<DB_DocumentFolderType[]>(Array.isArray(props.documentFolders) ? props.documentFolders : [])
@@ -75,12 +84,17 @@ export default function DocumentsPage(props: { documents: DB_DocumentType[], doc
   const [selectedDocuments, setSelectedDocuments] = useState<number[]>([])
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false)
   const [selectedDocument, setSelectedDocument] = useState<DB_DocumentType | null>(null)
-  const [currentFolder, setCurrentFolder] = useState<number | null>(null)
+  const [selectedFolder, setSelectedFolder] = useState<string | null>(null)
   const [showAIInsights, setShowAIInsights] = useState(false)
   const [uploadProgress, setUploadProgress] = useState(0)
   const [isUploading, setIsUploading] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const [newFolderName, setNewFolderName] = useState("");
+  const [newFolderColor, setNewFolderColor] = useState(COLOR_OPTIONS[0]);
+  const [isCreateFolderDialogOpen, setIsCreateFolderDialogOpen] = useState(false);
 
+
+  const navigate = useRouter();
   // Filter and sort documents
   const filteredDocuments = documents
     .filter((doc) => {
@@ -89,7 +103,7 @@ export default function DocumentsPage(props: { documents: DB_DocumentType[], doc
         doc.tags.some((tag) => tag.toLowerCase().includes(searchTerm.toLowerCase())) ||
         doc.description?.toLowerCase().includes(searchTerm.toLowerCase())
       const matchesCategory = selectedCategory === "all" || doc.category === selectedCategory
-      const matchesFolder = !currentFolder || doc.path.includes(currentFolder)
+      const matchesFolder = !selectedFolder || doc.folder === selectedFolder
       return matchesSearch && matchesCategory && matchesFolder
     })
     .sort((a, b) => {
@@ -155,13 +169,13 @@ export default function DocumentsPage(props: { documents: DB_DocumentType[], doc
           viewCount: 0,
           aiProcessed: false,
           collaborators: [],
-          path: currentFolder || "/",
+          path: selectedFolder || "/",
           status: "syncing",
         }
         setDocuments((prev) => [...prev, newDoc])
       })
     },
-    [currentFolder],
+    [selectedFolder],
   )
 
   const getFileType = (filename: string): DB_DocumentType["type"] => {
@@ -214,150 +228,16 @@ export default function DocumentsPage(props: { documents: DB_DocumentType[], doc
     setSelectedDocuments((prev) => prev.filter((id) => id !== docId))
   }
 
-  const categories = Array.from(new Set(documents.map((doc) => doc.category)))
-  const renderListView = () => (
-    <div className="space-y-2">
-      {filteredDocuments.map((doc) => {
-        const IconComponent = fileTypeIcons[doc.type]
-        return (
-          <Card
-            key={doc.id}
-            className={`p-4 hover:shadow-md transition-all cursor-pointer ${selectedDocuments.includes(doc.id) ? "ring-2 ring-blue-500" : ""
-              }`}
-            onClick={() => redirect(`/workspace/documents/${doc.id}`)}
-          >
-            <div className="flex items-center gap-4">
-              <Checkbox
-                checked={selectedDocuments.includes(doc.id)}
-                onCheckedChange={() => toggleDocumentSelection(doc.id)}
-                onClick={(e) => e.stopPropagation()}
-              />
-              <IconComponent className="w-6 h-6 text-blue-600" />
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <h3 className="font-medium truncate">{doc.name}</h3>
-                  {doc.isStarred && <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />}
-                  {doc.isShared && <Users className="w-4 h-4 text-green-600" />}
-                  {doc.isLocked && <Lock className="w-4 h-4 text-red-600" />}
-                </div>
-                <div className="flex items-center gap-4 text-sm text-gray-500">
-                  <span>{formatFileSize(doc.size)}</span>
-                  <span>{doc.dateModified.toLocaleDateString()}</span>
-                  <span className="flex items-center gap-1">
-                    <Eye className="w-3 h-3" />
-                    {doc.viewCount}
-                  </span>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                {doc.aiProcessed && (
-                  <Badge variant="secondary" className="text-xs">
-                    <Brain className="w-3 h-3 mr-1" />
-                    AI: {doc.aiScore}%
-                  </Badge>
-                )}
-                <Badge variant="outline" className="text-xs">
-                  {doc.category}
-                </Badge>
-                <div className={`w-2 h-2 rounded-full ${documentStatusColors[doc.status]}`} />
-              </div>
-            </div>
-          </Card>
-        )
-      })}
-    </div>
-  )
 
-  const renderTimelineView = () => (
-    <div className="space-y-6">
-      {Object.entries(
-        filteredDocuments.reduce(
-          (acc, doc) => {
-            const date = doc.dateModified.toDateString()
-            if (!acc[date]) acc[date] = []
-            acc[date].push(doc)
-            return acc
-          },
-          {} as Record<string, DB_DocumentType[]>,
-        ),
-      ).map(([date, docs]) => (
-        <div key={date} className="relative">
-          <div className="sticky top-0 bg-white z-10 py-2 border-b">
-            <h3 className="font-semibold text-lg">{date}</h3>
-          </div>
-          <div className="mt-4 space-y-2">
-            {docs.map((doc) => {
-              const IconComponent = fileTypeIcons[doc.type]
-              return (
-                <Card key={doc.id} className="p-3 hover:shadow-md transition-all cursor-pointer">
-                  <div className="flex items-center gap-3">
-                    <IconComponent className="w-5 h-5 text-blue-600" />
-                    <div className="flex-1">
-                      <h4 className="font-medium">{doc.name}</h4>
-                      <p className="text-sm text-gray-500">
-                        {doc.category} • {formatFileSize(doc.size)}
-                      </p>
-                    </div>
-                    <div className="text-sm text-gray-500">
-                      {doc.dateModified.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                    </div>
-                  </div>
-                </Card>
-              )
-            })}
-          </div>
-        </div>
-      ))}
-    </div>
-  )
+  const handleCreateDocumentFolder = () => {
 
-  const renderKanbanView = () => {
-    const columns = [
-      { id: "to-review", title: "To Review", docs: filteredDocuments.filter((d) => !d.aiProcessed) },
-      { id: "in-progress", title: "In Progress", docs: filteredDocuments.filter((d) => d.status === "syncing") },
-      {
-        id: "completed",
-        title: "Completed",
-        docs: filteredDocuments.filter((d) => d.aiProcessed && d.status === "synced"),
-      },
-    ]
-
-    return (
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {columns.map((column) => (
-          <div key={column.id} className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="font-semibold">{column.title}</h3>
-              <Badge variant="secondary">{column.docs.length}</Badge>
-            </div>
-            <div className="space-y-2">
-              {column.docs.map((doc) => {
-                const IconComponent = fileTypeIcons[doc.type]
-                return (
-                  <Card key={doc.id} className="p-3 hover:shadow-md transition-all cursor-pointer">
-                    <div className="flex items-start gap-2">
-                      <IconComponent className="w-4 h-4 text-blue-600 mt-1" />
-                      <div className="flex-1 min-w-0">
-                        <h4 className="font-medium text-sm truncate">{doc.name}</h4>
-                        <p className="text-xs text-gray-500">{formatFileSize(doc.size)}</p>
-                        <div className="flex flex-wrap gap-1 mt-1">
-                          {doc.tags.slice(0, 2).map((tag) => (
-                            <Badge key={tag} variant="outline" className="text-xs">
-                              {tag}
-                            </Badge>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  </Card>
-                )
-              })}
-            </div>
-          </div>
-        ))}
-      </div>
-    )
   }
+
+
+
+  const categories = Array.from(new Set(documents.map((doc) => doc.category)))
+
+
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">
@@ -385,6 +265,7 @@ export default function DocumentsPage(props: { documents: DB_DocumentType[], doc
                   <Upload className="w-4 h-4 mr-2" />
                   Upload
                 </Button>
+
               </DialogTrigger>
               <DialogContent className="max-w-2xl">
                 <DialogHeader>
@@ -405,6 +286,11 @@ export default function DocumentsPage(props: { documents: DB_DocumentType[], doc
                     onDragOver={(e) => e.preventDefault()}
                   >
                     <CloudUpload className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                    <UploadDropzone endpoint="claudeUploader"
+                      onClientUploadComplete={() => {
+                        navigate.refresh();
+                      }}
+                      input={{ folder: selectedFolder }} />
                     <p className="text-lg font-medium">Drop files here or click to browse</p>
                     <p className="text-sm text-gray-500">Supports PDF, DOCX, PPTX, XLSX, TXT, and more</p>
                   </div>
@@ -607,41 +493,121 @@ export default function DocumentsPage(props: { documents: DB_DocumentType[], doc
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
           {/* Sidebar */}
           <div className="space-y-4">
+
             <Card>
-              <CardHeader>
+              <CardHeader className="flex items-center justify-between">
                 <CardTitle className="text-lg">Folders</CardTitle>
+                <Dialog open={isCreateFolderDialogOpen} onOpenChange={setIsCreateFolderDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button size="sm" variant="outline">+ Add</Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Create New Folder</DialogTitle>
+                    </DialogHeader>
+
+                    <Input
+                      placeholder="Folder name"
+                      value={newFolderName}
+                      onChange={(e) => setNewFolderName(e.target.value)}
+                      className="mb-4"
+                    />
+
+                    <div className="space-y-1">
+                      <div className="text-sm font-medium">Choose color</div>
+                      <div className="flex gap-2 mt-1">
+                        {COLOR_OPTIONS.map((color) => (
+                          <button
+                            key={color}
+                            onClick={() => setNewFolderColor(color)}
+                            className={cn(
+                              "w-6 h-6 rounded-full border-2",
+                              color === newFolderColor ? "border-black" : "border-transparent"
+                            )}
+                            style={{ backgroundColor: color }}
+                          />
+                        ))}
+                      </div>
+                    </div>
+
+                    <DialogFooter className="mt-4">
+                      <Button onClick={handleCreateDocumentFolder}
+                        disabled={!newFolderName.trim()}
+                      >Create</Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
               </CardHeader>
+
               <CardContent>
                 <div className="space-y-2">
                   <Button
-                    variant={currentFolder === null ? "default" : "ghost"}
+                    variant={selectedFolder === null ? "default" : "ghost"}
                     className="w-full justify-start"
-                    onClick={() => setCurrentFolder(null)}
+                    onClick={() => setSelectedFolder(null)}
                   >
                     <FolderIcon className="w-4 h-4 mr-2" />
                     All Documents
+                    <Badge variant="secondary" className="ml-auto">{documents.length}</Badge>
                   </Button>
+
                   {folders.map((folder) => (
-                    <Button
-                      key={folder.id}
-                      variant={currentFolder === folder.name ? "default" : "ghost"}
-                      className="w-full justify-start"
-                      onClick={() => setCurrentFolder(folder.name)}
-                    >
-                      <FolderOpen className="w-4 h-4 mr-2" />
-                      {folder.name}
-                      <Badge variant="secondary" className="ml-auto">
-                        {folder.documentCount}
-                      </Badge>
-                    </Button>
+                    <div key={folder.id} className="flex items-center space-x-2">
+                      <Button
+                        variant={selectedFolder === folder.id ? "default" : "ghost"}
+                        className="flex-1 justify-start"
+                        onClick={() => setSelectedFolder(folder.id)}
+                      >
+                        <div
+                          className="w-4 h-4 rounded mr-2"
+                          style={{ backgroundColor: folder.color }}
+                        />
+                        {folder.name}
+                        <Badge variant="secondary" className="ml-auto">
+                          {folder.noteCount}
+                        </Badge>
+                      </Button>
+
+                      <Dialog>
+                        <DialogTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                          >
+                            <TrashIcon className="w-4 h-4 text-red-500" />
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent>
+                          <DialogHeader>
+                            <DialogTitle>Delete Folder?</DialogTitle>
+                          </DialogHeader>
+                          <p className="text-sm text-muted-foreground">
+                            This will permanently remove the folder and its notes.
+                          </p>
+                          <DialogFooter className="mt-4">
+                            <Button variant="outline" >
+                              Cancel
+                            </Button>
+                            <Button
+                              variant="destructive"
+                            // onClick={() => handleDeleteFolder(folder.id)}
+                            >
+                              Delete
+                            </Button>
+                          </DialogFooter>
+                        </DialogContent>
+                      </Dialog>
+                    </div>
                   ))}
-                  <Button variant="ghost" className="w-full justify-start">
-                    <FolderPlus className="w-4 h-4 mr-2" />
-                    New Folder
-                  </Button>
                 </div>
               </CardContent>
             </Card>
+
+
+
+
+
+
 
             <Card>
               <CardHeader>
@@ -734,9 +700,9 @@ export default function DocumentsPage(props: { documents: DB_DocumentType[], doc
             )}
 
             {viewMode === "grid" && <DocumentsGridView filteredDocuments={filteredDocuments} selectedDocuments={selectedDocuments} deleteDocument={deleteDocument} toggleStar={toggleStar} />}
-            {viewMode === "list" && renderListView()}
-            {viewMode === "timeline" && renderTimelineView()}
-            {viewMode === "kanban" && renderKanbanView()}
+            {viewMode === "list" && <DocumentsListView filteredDocuments={filteredDocuments} selectedDocuments={selectedDocuments} toggleDocumentSelection={toggleDocumentSelection} />}
+            {viewMode === "timeline" && <DocumentsTimelineView filteredDocuments={filteredDocuments} />}
+            {viewMode === "kanban" && <DocumentsKanbanView filteredDocuments={filteredDocuments} />}
 
             {filteredDocuments.length === 0 && (
               <Card>
@@ -760,7 +726,7 @@ export default function DocumentsPage(props: { documents: DB_DocumentType[], doc
             <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-2">
-                  {React.createElement(fileTypeIcons[selectedDocument.type], { className: "w-5 h-5" })}
+                  {React.createElement(documentFileTypeIcons[selectedDocument.type], { className: "w-5 h-5" })}
                   {selectedDocument.name}
                 </DialogTitle>
               </DialogHeader>
@@ -826,7 +792,7 @@ export default function DocumentsPage(props: { documents: DB_DocumentType[], doc
                 <TabsContent value="preview">
                   <div className="aspect-video bg-gray-100 rounded-lg flex items-center justify-center">
                     <div className="text-center">
-                      {React.createElement(fileTypeIcons[selectedDocument.type], {
+                      {React.createElement(documentFileTypeIcons[selectedDocument.type], {
                         className: "w-16 h-16 text-gray-400 mx-auto mb-4",
                       })}
                       <p className="text-gray-500">Preview not available</p>
