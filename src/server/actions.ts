@@ -2,7 +2,7 @@
 
 import { and, desc, eq, sql } from "drizzle-orm"
 import { db } from "./db"
-import { calendar_events_table, files_table, note_folders_table, notes_table } from "./db/schema"
+import { calendar_events_table, document_folders_table, files_table, note_folders_table, notes_table } from "./db/schema"
 import type { DB_CalendarrType, DB_NoteType } from "./db/schema"
 import { auth } from "@clerk/nextjs/server";
 import { UTApi } from "uploadthing/server";
@@ -295,6 +295,30 @@ export async function createFolderAction(folder: {
       name: folder.name,
       color: folder.color,
       noteCount: folder.noteCount,
+      ownerId: folder.ownerId,
+    });
+
+    return { success: true };
+  } catch (error) {
+    console.error("Failed to create folder", error);
+    return { success: false, error: "Failed to create folder" };
+  }
+}
+
+
+export async function createDocumentFolderAction(folder: {
+  id: number;
+  name: string;
+  color: string;
+  documentCount: number;
+  ownerId: string;
+}) {
+  try {
+    await db.insert(document_folders_table).values({
+      id: folder.id,
+      name: folder.name,
+      color: folder.color,
+      documentCount: folder.documentCount,
       ownerId: folder.ownerId,
     });
 

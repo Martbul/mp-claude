@@ -2,8 +2,9 @@ import { QUERIES } from "~/server/db/queries";
 import DocumentsPage from "./DocumentsPage/page";
 import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
+import { DB_DocumentType } from "~/server/db/schema";
 
-export default async function MPClaude() {
+export default async function Documents() {
 
 
   const user = await auth();
@@ -18,6 +19,6 @@ export default async function MPClaude() {
   console.log(documents)
   console.log(documentFolders)
 
-  return <DocumentsPage documents={documents} documentFolders={documentFolders} userId={user.userId} />
+  return <DocumentsPage documents={documents as DB_DocumentType[]} documentFolders={documentFolders} userId={user.userId} />
 
 }
