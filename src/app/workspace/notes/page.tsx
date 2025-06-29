@@ -9,13 +9,10 @@ export default async function Notes() {
   if (!user.userId) {
     redirect('/sign-in');
   }
-
-  const notes = await QUERIES.getNotes(user.userId)
-  console.log(notes)
-
-  const notesFolders = await QUERIES.getNotesFolders(user.userId)
-  console.log(notesFolders)
-
+  const [notes, notesFolders] = await Promise.all([
+    QUERIES.getNotes(user.userId),
+    QUERIES.getNotesFolders(user.userId)
+  ])
 
   return (
     <NotesPage notes={notes} notesFolders={notesFolders} userId={user.userId} ></NotesPage>

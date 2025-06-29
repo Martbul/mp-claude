@@ -2,7 +2,7 @@
 
 import { and, desc, eq, sql } from "drizzle-orm"
 import { db } from "./db"
-import { calendar_events_table, document_folders_table, files_table, note_folders_table, notes_table } from "./db/schema"
+import { calendar_events_table, document_folders_table, documents_table, files_table, note_folders_table, notes_table } from "./db/schema"
 import type { DB_CalendarrType, DB_NoteType } from "./db/schema"
 import { auth } from "@clerk/nextjs/server";
 import { UTApi } from "uploadthing/server";
@@ -50,7 +50,7 @@ export async function createNote(noteData: {
   tags: string[];
   color: string;
   priority: "low" | "medium" | "high";
-  folder: string | null;
+  folderId: number | null;
   ownerId: string;
 }) {
   try {
@@ -83,7 +83,7 @@ export async function createNote(noteData: {
       version: 1,
       isShared: false,
       viewCount: 0,
-      folder: noteData.folder,
+      folderId: noteData.folderId,
     };
 
     await db.insert(notes_table).values(newNote);
@@ -96,7 +96,7 @@ export async function createNote(noteData: {
       .limit(1)
       .then(rows => rows[0]);
 
-    if (noteData.folder) {
+    if (noteData.folderId) {
       await db
         .update(note_folders_table)
         .set({
@@ -104,7 +104,7 @@ export async function createNote(noteData: {
         })
         .where(
           and(
-            eq(note_folders_table.id, noteData.folder),
+            eq(note_folders_table.id, noteData.folderId),
             eq(note_folders_table.ownerId, noteData.ownerId)
           )
         );
@@ -252,7 +252,7 @@ export async function deleteNoteAction(userId: string, noteId: number) {
       .from(notes_table)
       .where(eq(notes_table.id, noteId));
 
-    if (noteForDeletion?.folder) {
+    if (noteForDeletion?.folderId) {
       await db
         .update(note_folders_table)
         .set({
@@ -260,7 +260,7 @@ export async function deleteNoteAction(userId: string, noteId: number) {
         })
         .where(
           and(
-            eq(note_folders_table.id, noteForDeletion.folder),
+            eq(note_folders_table.id, noteForDeletion.folderId),
             eq(note_folders_table.ownerId, noteForDeletion.ownerId)
           )
         );
@@ -283,7 +283,7 @@ export async function deleteNoteAction(userId: string, noteId: number) {
 
 
 export async function createFolderAction(folder: {
-  id: string;
+  id: number;
   name: string;
   color: string;
   noteCount: number;
@@ -329,12 +329,29 @@ export async function createDocumentFolderAction(folder: {
   }
 }
 
-export async function deleteFolderAction(userId: string, folderId: string) {
+export async function deleteFolderAction(userId: string, folderId: number) {
   try {
 
     await db.delete(note_folders_table).where(and(eq(note_folders_table.id, folderId), eq(note_folders_table.ownerId, userId)))
 
-    await db.delete(notes_table).where(and(eq(notes_table.folder, folderId), eq(notes_table.ownerId, userId)))
+    await db.delete(notes_table).where(and(eq(notes_table.folderId, folderId), eq(notes_table.ownerId, userId)))
+
+    return { success: true }
+  }
+  catch (error) {
+    console.log("Filed to delete note", error)
+    return { success: false, error: "Filed to delete note" }
+  }
+}
+
+
+export async function deleteDocumentFolderAction(userId: string, folderId: number) {
+  console.log(folderId)
+  try {
+
+    await db.delete(document_folders_table).where(and(eq(document_folders_table.id, folderId), eq(document_folders_table.ownerId, userId)))
+
+    await db.delete(documents_table).where(and(eq(documents_table.folderId, folderId), eq(documents_table.ownerId, userId)))
 
     return { success: true }
   }

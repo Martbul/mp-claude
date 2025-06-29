@@ -1,5 +1,3 @@
-import "server-only";
-
 import { calendar_events_table, type DB_NoteType, documents_table, files_table, folders_table, notes_table, type DB_FileType, note_folders_table, DB_NoteFolderType, settings_table, document_folders_table } from "~/server/db/schema";
 import { db } from "~/server/db";
 import { and, desc, eq, isNull } from "drizzle-orm";
@@ -184,7 +182,6 @@ export const MUTATIONS = {
     //create noteFolders
     await db.insert(note_folders_table).values([
       {
-        id: "math",
         name: "Mathematics",
         color: "#2196F3",
         noteCount: 0, // Changed from note_count
@@ -192,7 +189,6 @@ export const MUTATIONS = {
         createdAt: new Date(), // Changed from created_at
       },
       {
-        id: "physics",
         name: "Physics",
         color: "#4CAF50",
         noteCount: 0, // Changed from note_count
@@ -200,7 +196,6 @@ export const MUTATIONS = {
         createdAt: new Date(), // Changed from created_at
       },
       {
-        id: "chemistry",
         name: "Chemistry",
         color: "#FF9800",
         noteCount: 0, // Changed from note_count
@@ -208,7 +203,6 @@ export const MUTATIONS = {
         createdAt: new Date(), // Changed from created_at
       },
       {
-        id: "history",
         name: "History",
         color: "#9C27B0",
         noteCount: 0, // Changed from note_count
@@ -216,7 +210,6 @@ export const MUTATIONS = {
         createdAt: new Date(), // Changed from created_at
       },
       {
-        id: "informatics",
         name: "Informatics",
         color: "#00BCD4",
         noteCount: 0, // Changed from note_count
@@ -224,7 +217,6 @@ export const MUTATIONS = {
         createdAt: new Date(), // Changed from created_at
       },
       {
-        id: "literature",
         name: "Literature",
         color: "#E91E63",
         noteCount: 0, // Changed from note_count
@@ -237,7 +229,6 @@ export const MUTATIONS = {
 
     await db.insert(document_folders_table).values([
       {
-        id: "math1",
         name: "Mathematics",
         color: "#2196F3",
         documentCount: 0, // Changed from note_count
@@ -245,7 +236,6 @@ export const MUTATIONS = {
         createdAt: new Date(), // Changed from created_at
       },
       {
-        id: "physics1",
         name: "Physics",
         color: "#4CAF50",
         documentCount: 0, // Changed from note_count
@@ -253,7 +243,6 @@ export const MUTATIONS = {
         createdAt: new Date(), // Changed from created_at
       },
       {
-        id: "chemistry1",
         name: "Chemistry",
         color: "#FF9800",
         documentCount: 0, // Changed from note_count
@@ -261,7 +250,6 @@ export const MUTATIONS = {
         createdAt: new Date(), // Changed from created_at
       },
       {
-        id: "history1",
         name: "History",
         color: "#9C27B0",
         documentCount: 0, // Changed from note_count
@@ -269,7 +257,6 @@ export const MUTATIONS = {
         createdAt: new Date(), // Changed from created_at
       },
       {
-        id: "informatics1",
         name: "Informatics",
         color: "#00BCD4",
         documentCount: 0, // Changed from note_count
@@ -277,7 +264,6 @@ export const MUTATIONS = {
         createdAt: new Date(), // Changed from created_at
       },
       {
-        id: "literature1",
         name: "Literature",
         color: "#E91E63",
         documentCount: 0, // Changed from note_count
@@ -304,7 +290,7 @@ export const MUTATIONS = {
     tags: string[]
     color: string
     priority: "low" | "medium" | "high"
-    folder: string | null
+    folderId: number | null
     ownerId: string
   }) {
     const now = new Date()
@@ -317,7 +303,7 @@ export const MUTATIONS = {
       tags: data.tags,
       color: data.color,
       priority: data.priority,
-      folder: data.folder,
+      folderId: data.folderId,
       ownerId: data.ownerId,
       createdAt: now,
       updatedAt: now,

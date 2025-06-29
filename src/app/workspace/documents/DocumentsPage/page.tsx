@@ -61,7 +61,7 @@ import { UploadDropzone } from "~/components/uploadthing"
 import DocumentsKanbanView from "../documentRenderViews/KanbanView";
 import DocumentsTimelineView from "../documentRenderViews/TimeLineView";
 import DocumentsListView from "../documentRenderViews/ListView";
-import { createDocumentFolderAction } from "~/server/actions";
+import { createDocumentFolderAction, deleteDocumentFolderAction } from "~/server/actions";
 
 const categories = [
   'Academic', 'Business', 'Personal', 'Research', 'Legal', 'Medical',
@@ -83,10 +83,10 @@ export default function DocumentsPage(props: { documents: DB_DocumentType[], doc
   const [selectedCategory, setSelectedCategory] = useState("all")
   const [sortBy, setSortBy] = useState<DocumentSortBy>("date")
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc")
-  const [selectedDocuments, setSelectedDocuments] = useState<number[]>([])
+  const [selectedDocuments, setSelectedDocuments] = useState<DB_DocumentType[]>([])
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false)
   const [selectedDocument, setSelectedDocument] = useState<DB_DocumentType | null>(null)
-  const [selectedFolder, setSelectedFolder] = useState<string | null>(null)
+  const [selectedFolder, setSelectedFolder] = useState<DB_DocumentFolderType | null>(null)
   const [showAIInsights, setShowAIInsights] = useState(false)
   const [uploadProgress, setUploadProgress] = useState(0)
   const [isUploading, setIsUploading] = useState(false)
@@ -105,7 +105,7 @@ export default function DocumentsPage(props: { documents: DB_DocumentType[], doc
         doc.tags.some((tag) => tag.toLowerCase().includes(searchTerm.toLowerCase())) ||
         doc.description?.toLowerCase().includes(searchTerm.toLowerCase())
       const matchesCategory = selectedCategory === "all" || doc.category === selectedCategory
-      const matchesFolder = !selectedFolder || doc.folder === selectedFolder
+      const matchesFolder = !selectedFolder || doc.folderId === selectedFolder.id
       return matchesSearch && matchesCategory && matchesFolder
     })
     .sort((a, b) => {
@@ -273,40 +273,32 @@ export default function DocumentsPage(props: { documents: DB_DocumentType[], doc
   //TODO: add editing of a note
 
 
-  const handleDeleteFolder = async (folderId: string) => {
+  const handleDeleteDocumentFolder = async (folderId: number) => {
     const prevFolders = folders
-    const prevSelectedNotes = selectedNotes;
+    const prevSelectedDocuments = selectedDocuments;
 
     setFolders((prev) => prev.filter((f) => f.id !== folderId));
-    if (selectedFolder === folderId) setSelectedFolder(null);
+    if (selectedFolder?.id === folderId) setSelectedFolder(null);
 
-    setSelectedNotes((prev) =>
-      prev.filter((noteId) => {
-        const note = notes.find((n) => n.id === noteId);
-        return note?.folder !== folderId;
+    setSelectedDocuments((prev) =>
+      prev.filter((doc) => {
+        const document = documents.find((d) => d.id === doc.id);
+        return document?.folderId !== folderId;
       })
     );
 
-    // Optional: also remove the notes themselves (optimistically)
-    setNotes((prev) => prev.filter((n) => n.folder !== folderId));
+    setDocuments((prev) => prev.filter((d) => d.folderId !== folderId));
     try {
-      const result = await deleteFolderAction(props.userId, folderId);
+      const result = await deleteDocumentFolderAction(props.userId, folderId);
 
       if (!result.success) {
-        // Revert on failure
         setFolders(prevFolders);
-
-        setSelectedNotes(prevSelectedNotes)
+        setSelectedDocuments(prevSelectedDocuments)
         console.error("Failed to delete folder", result.error);
       }
-
-
     } catch (error) {
-      // Revert on exception
       setFolders(prevFolders);
-
-      setSelectedNotes(prevSelectedNotes)
-
+      setSelectedDocuments(prevSelectedDocuments)
       console.error("Error deleting folder", error);
     }
   }
@@ -836,7 +828,7 @@ export default function DocumentsPage(props: { documents: DB_DocumentType[], doc
                         />
                         {folder.name}
                         <Badge variant="secondary" className="ml-auto">
-                          {folder.noteCount}
+                          {folder.documentCount}
                         </Badge>
                       </Button>
 
@@ -862,7 +854,7 @@ export default function DocumentsPage(props: { documents: DB_DocumentType[], doc
                             </Button>
                             <Button
                               variant="destructive"
-                            // onClick={() => handleDeleteFolder(folder.id)}
+                              onClick={() => handleDeleteDocumentFolder(folder.id)}
                             >
                               Delete
                             </Button>

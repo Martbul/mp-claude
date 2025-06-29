@@ -65,7 +65,7 @@ export default function NotesPage(props: { notes: DB_NoteType[], notesFolders: D
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc")
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedCategory, setSelectedCategory] = useState("all")
-  const [selectedFolder, setSelectedFolder] = useState<string | null>(null)
+  const [selectedFolder, setSelectedFolder] = useState<DB_NoteFolderType | null>(null)
   const [selectedNotes, setSelectedNotes] = useState<number[]>([])
   const [isCreateNoteDialogOpen, setIsCreateNoteDialogOpen] = useState(false)
   const [selectedNote, setSelectedNote] = useState<DB_NoteType | null>(null)
@@ -80,8 +80,9 @@ export default function NotesPage(props: { notes: DB_NoteType[], notesFolders: D
     tags: [] as string[],
     color: noteColors[0],
     priority: "medium" as DB_NoteType["priority"],
-    folder: "",
+    folder: null as DB_NoteFolderType | null,
   })
+
 
   const filteredAndSortedNotes: DB_NoteType[] = useMemo(() => {
     const filtered = notes.filter((note) => {
@@ -94,7 +95,7 @@ export default function NotesPage(props: { notes: DB_NoteType[], notesFolders: D
         note.excerpt.toLowerCase().includes(searchTerm.toLowerCase())
 
       const matchesCategory = selectedCategory === "all" || note.category === selectedCategory
-      const matchesFolder = !selectedFolder || note.folder === selectedFolder
+      const matchesFolder = !selectedFolder || note.folderId === selectedFolder.id
 
       return matchesSearch && matchesCategory && matchesFolder
     })
@@ -225,13 +226,12 @@ export default function NotesPage(props: { notes: DB_NoteType[], notesFolders: D
     if (!trimmedName) return;
 
     const optimisticFolder: DB_NoteFolderType = {
-      id: `${Date.now()}`,
+      id: Date.now(),
       name: trimmedName,
-      color: newFolderColor ?? COLOR_OPTIONS[0],
+      color: newFolderColor ?? COLOR_OPTIONS[0]!,
       noteCount: 0,
       ownerId: props.userId,
     };
-
     // Optimistically update UI
     setFolders((prev) => [...prev, optimisticFolder]);
 
@@ -257,22 +257,22 @@ export default function NotesPage(props: { notes: DB_NoteType[], notesFolders: D
   //TODO: add editing of a note
 
 
-  const handleDeleteFolder = async (folderId: string) => {
+  const handleDeleteFolder = async (folderId: number) => {
     const prevFolders = folders
     const prevSelectedNotes = selectedNotes;
 
     setFolders((prev) => prev.filter((f) => f.id !== folderId));
-    if (selectedFolder === folderId) setSelectedFolder(null);
+    if (selectedFolder?.id === folderId) setSelectedFolder(null);
 
     setSelectedNotes((prev) =>
       prev.filter((noteId) => {
         const note = notes.find((n) => n.id === noteId);
-        return note?.folder !== folderId;
+        return note?.folderId !== folderId;
       })
     );
 
     // Optional: also remove the notes themselves (optimistically)
-    setNotes((prev) => prev.filter((n) => n.folder !== folderId));
+    setNotes((prev) => prev.filter((n) => n.folderId !== folderId));
     try {
       const result = await deleteFolderAction(props.userId, folderId);
 
@@ -304,7 +304,7 @@ export default function NotesPage(props: { notes: DB_NoteType[], notesFolders: D
     const prevNotes = notes;
     const prevSelectedNotes = selectedNotes;
     const deletedNote = notes.find(n => n.id === noteId);
-    const deletedNoteFolderId = deletedNote?.folder;
+    const deletedNoteFolderId = deletedNote?.folderId;
 
     setNotes(prev => prev.filter(note => note.id !== noteId));
     setSelectedNotes(prev => prev.filter(id => id !== noteId));
@@ -392,7 +392,7 @@ export default function NotesPage(props: { notes: DB_NoteType[], notesFolders: D
       version: 1,
       isShared: false,
       viewCount: 0,
-      folder: selectedFolder ?? "",
+      folderId: newNote.folder?.id!,
     };
 
     const noteDataToSave = {
@@ -402,7 +402,19 @@ export default function NotesPage(props: { notes: DB_NoteType[], notesFolders: D
       tags: newNote.tags,
       color: newNote.color ?? "#ffffff",
       priority: newNote.priority,
-      folder: selectedFolder ?? "",
+      folderId: selectedFolder?.id ?? newNote.folder?.id,
+      ownerId: props.userId,
+    };
+
+
+    const noteDataToDisplay = {
+      title: newNote.title,
+      content: newNote.content,
+      category: newNote.category,
+      tags: newNote.tags,
+      color: newNote.color ?? "#ffffff",
+      priority: newNote.priority,
+      folder: newNote.folder,
       ownerId: props.userId,
     };
 
@@ -412,7 +424,7 @@ export default function NotesPage(props: { notes: DB_NoteType[], notesFolders: D
     if (selectedFolder) {
       setFolders(prev =>
         prev.map(folder =>
-          folder.id === selectedFolder
+          folder.id === selectedFolder.id
             ? { ...folder, noteCount: (folder.noteCount ?? 0) + 1 }
             : folder
         )
@@ -426,12 +438,11 @@ export default function NotesPage(props: { notes: DB_NoteType[], notesFolders: D
       tags: [],
       color: noteColors[0],
       priority: "medium",
-      folder: "",
+      folder: null,
     });
 
     setIsCreateNoteDialogOpen(false);
 
-    // Ensure proper return type
     type CreateNoteResult =
       | { success: true; data: DB_NoteType }
       | { success: false; error: string };
@@ -449,13 +460,13 @@ export default function NotesPage(props: { notes: DB_NoteType[], notesFolders: D
         setNotes(prev => prev.filter(note => note.id !== optimisticNote.id));
         console.error("Failed to create note");
         setNewNote({
-          title: noteDataToSave.title,
-          content: noteDataToSave.content,
-          category: noteDataToSave.category,
-          tags: noteDataToSave.tags,
-          color: noteDataToSave.color,
-          priority: noteDataToSave.priority,
-          folder: noteDataToSave.folder,
+          title: noteDataToDisplay.title,
+          content: noteDataToDisplay.content,
+          category: noteDataToDisplay.category,
+          tags: noteDataToDisplay.tags,
+          color: noteDataToDisplay.color,
+          priority: noteDataToDisplay.priority,
+          folder: noteDataToDisplay.folder,
         });
 
 
@@ -463,7 +474,7 @@ export default function NotesPage(props: { notes: DB_NoteType[], notesFolders: D
         if (selectedFolder) {
           setFolders(prev =>
             prev.map(folder =>
-              folder.id === selectedFolder
+              folder.id === selectedFolder.id
                 ? { ...folder, noteCount: Math.max((folder.noteCount ?? 1) - 1, 0) }
                 : folder
             )
@@ -475,15 +486,18 @@ export default function NotesPage(props: { notes: DB_NoteType[], notesFolders: D
     } catch (error) {
       setNotes(prev => prev.filter(note => note.id !== optimisticNote.id));
       console.error("Failed to create note:", error);
+
       setNewNote({
-        title: noteDataToSave.title,
-        content: noteDataToSave.content,
-        category: noteDataToSave.category,
-        tags: noteDataToSave.tags,
-        color: noteDataToSave.color,
-        priority: noteDataToSave.priority,
-        folder: noteDataToSave.folder,
+        title: noteDataToDisplay.title,
+        content: noteDataToDisplay.content,
+        category: noteDataToDisplay.category,
+        tags: noteDataToDisplay.tags,
+        color: noteDataToDisplay.color,
+        priority: noteDataToDisplay.priority,
+        folder: noteDataToDisplay.folder,
       });
+
+
       setIsCreateNoteDialogOpen(true);
     }
   };
@@ -545,9 +559,13 @@ export default function NotesPage(props: { notes: DB_NoteType[], notesFolders: D
                         </div>
                         <div>
                           <Label htmlFor="folder">Folder</Label>
+
                           <Select
-                            value={newNote.folder}
-                            onValueChange={(value) => setNewNote((prev) => ({ ...prev, folder: value }))}
+                            value={newNote.folder ? newNote.folder.name.toString() : ""}
+                            onValueChange={(value) => setNewNote((prev) => ({
+                              ...prev,
+                              folderId: value ? parseInt(value) : null
+                            }))}
                           >
                             <SelectTrigger>
                               <SelectValue placeholder="Select folder" />
@@ -868,9 +886,9 @@ export default function NotesPage(props: { notes: DB_NoteType[], notesFolders: D
                   {folders.map((folder) => (
                     <div key={folder.id} className="flex items-center space-x-2">
                       <Button
-                        variant={selectedFolder === folder.id ? "default" : "ghost"}
+                        variant={selectedFolder?.id === folder.id ? "default" : "ghost"}
                         className="flex-1 justify-start"
-                        onClick={() => setSelectedFolder(folder.id)}
+                        onClick={() => setSelectedFolder(folder)}
                       >
                         <div
                           className="w-4 h-4 rounded mr-2"
@@ -1140,3 +1158,8 @@ export default function NotesPage(props: { notes: DB_NoteType[], notesFolders: D
     </div >
   )
 }
+
+
+
+
+

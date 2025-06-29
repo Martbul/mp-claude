@@ -1,11 +1,10 @@
 import { type Config } from "drizzle-kit";
-
 import { env } from "~/env";
 
 export default {
-  schema: "./src/server/db/schema.ts",
+  schema: "./src/server/db/schema/index.ts",
   dialect: "singlestore",
-   tablesFilter: ["mp_claude_*"],
+  tablesFilter: ["mp_claude_*"],
   dbCredentials: {
     host: env.SINGLESTORE_HOST,
     port: parseInt(env.SINGLESTORE_PORT),
@@ -15,5 +14,3 @@ export default {
     ssl: {},
   },
 } satisfies Config;
-
-
