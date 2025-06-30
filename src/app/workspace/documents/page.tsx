@@ -6,7 +6,6 @@ import { DB_DocumentType } from "~/server/db/schema";
 
 export default async function Documents() {
 
-
   const user = await auth();
   if (!user.userId) {
     redirect('/sign-in');
@@ -16,8 +15,6 @@ export default async function Documents() {
     QUERIES.getDocumentFolders(user.userId),
     QUERIES.getDocuments(user.userId),
   ]);
-  console.log(documents)
-  console.log(documentFolders)
 
   return <DocumentsPage documents={documents as DB_DocumentType[]} documentFolders={documentFolders} userId={user.userId} />
 

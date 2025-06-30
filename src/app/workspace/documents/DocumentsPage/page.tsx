@@ -31,6 +31,7 @@ import {
   CloudUpload,
   HardDrive,
   TrashIcon,
+  Lock,
 } from "lucide-react"
 
 import { useRouter } from "next/navigation";
@@ -61,7 +62,7 @@ import { UploadDropzone } from "~/components/uploadthing"
 import DocumentsKanbanView from "../documentRenderViews/KanbanView";
 import DocumentsTimelineView from "../documentRenderViews/TimeLineView";
 import DocumentsListView from "../documentRenderViews/ListView";
-import { createDocumentFolderAction, deleteDocumentFolderAction } from "~/server/actions";
+import { createDocumentFolderAction, deleteDocumentAction, deleteDocumentFolderAction } from "~/server/actions";
 
 const categories = [
   'Academic', 'Business', 'Personal', 'Research', 'Legal', 'Medical',
@@ -94,8 +95,25 @@ export default function DocumentsPage(props: { documents: DB_DocumentType[], doc
   const [newFolderName, setNewFolderName] = useState("");
   const [newFolderColor, setNewFolderColor] = useState(COLOR_OPTIONS[0]);
   const [isCreateFolderDialogOpen, setIsCreateFolderDialogOpen] = useState(false);
+  const [newTag, setNewTag] = useState("");
+  const [uploadForm, setUploadForm] = useState({
+    category: "Academic",
+    url: "",
+    tags: [] as string[],
+    description: "",
+    subject: "",
+    difficulty: "Intermediate",
+    isStarred: false,
+    isShared: false,
+    isLocked: false,
+  });
 
-
+  const updateUploadForm = (field: string, value: any) => {
+    setUploadForm(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
   const navigate = useRouter();
   // Filter and sort documents
   const filteredDocuments = documents
@@ -133,90 +151,6 @@ export default function DocumentsPage(props: { documents: DB_DocumentType[], doc
       return sortOrder === "asc" ? comparison : -comparison
     })
 
-  // Handle file upload
-  const handleFileUpload = useCallback(
-    (files: FileList) => {
-      setIsUploading(true)
-      setUploadProgress(0)
-
-      // Simulate upload progress
-      const interval = setInterval(() => {
-        setUploadProgress((prev) => {
-          if (prev >= 100) {
-            clearInterval(interval)
-            setIsUploading(false)
-            setIsUploadDialogOpen(false)
-            return 100
-          }
-          return prev + 10
-        })
-      }, 200)
-
-      // Process files (simulation)
-      Array.from(files).forEach((file) => {
-        const newDoc: Document = {
-          id: Date.now(),
-          name: file.name,
-          type: getFileType(file.name),
-          size: file.size,
-          dateCreated: new Date(),
-          dateModified: new Date(),
-          tags: [],
-          category: "Uncategorized",
-          isStarred: false,
-          isShared: false,
-          isLocked: false,
-          version: 1,
-          downloadCount: 0,
-          viewCount: 0,
-          aiProcessed: false,
-          collaborators: [],
-          path: selectedFolder || "/",
-          status: "syncing",
-        }
-        setDocuments((prev) => [...prev, newDoc])
-      })
-    },
-    [selectedFolder],
-  )
-
-  const getFileType = (filename: string): DB_DocumentType["type"] => {
-    const ext = filename.split(".").pop()?.toLowerCase()
-    switch (ext) {
-      case "pdf":
-        return "pdf"
-      case "doc":
-      case "docx":
-        return "docx"
-      case "ppt":
-      case "pptx":
-        return "pptx"
-      case "xls":
-      case "xlsx":
-        return "xlsx"
-      case "txt":
-        return "txt"
-      case "jpg":
-      case "jpeg":
-      case "png":
-      case "gif":
-        return "image"
-      case "mp4":
-      case "avi":
-      case "mov":
-        return "video"
-      case "mp3":
-      case "wav":
-        return "audio"
-      case "js":
-      case "ts":
-      case "py":
-      case "java":
-        return "code"
-      default:
-        return "other"
-    }
-  }
   const toggleDocumentSelection = (docId: number) => {
     setSelectedDocuments((prev) => (prev.includes(docId) ? prev.filter((id) => id !== docId) : [...prev, docId]))
   }
@@ -224,12 +158,6 @@ export default function DocumentsPage(props: { documents: DB_DocumentType[], doc
   const toggleStar = (docId: number) => {
     setDocuments((prev) => prev.map((doc) => (doc.id === docId ? { ...doc, isStarred: !doc.isStarred } : doc)))
   }
-
-  const deleteDocument = (docId: number) => {
-    setDocuments((prev) => prev.filter((doc) => doc.id !== docId))
-    setSelectedDocuments((prev) => prev.filter((id) => id !== docId))
-  }
-
 
 
 
@@ -307,58 +235,58 @@ export default function DocumentsPage(props: { documents: DB_DocumentType[], doc
 
 
 
-  const deleteNote = async (noteId: number) => {
-    // Optimistically update UI
-    const prevNotes = notes;
-    const prevSelectedNotes = selectedNotes;
-    const deletedNote = notes.find(n => n.id === noteId);
-    const deletedNoteFolderId = deletedNote?.folder;
+  const deleteDocument = async (documentId: number) => {
+    const prevDocuments = documents;
+    const prevSelectedDocuments = selectedDocuments;
+    const deletedDoc = documents.find(d => d.id === documentId);
+    const deletedDocumentFolderId = deletedDoc?.folderId;
 
-    setNotes(prev => prev.filter(note => note.id !== noteId));
-    setSelectedNotes(prev => prev.filter(id => id !== noteId));
-    setSelectedNote(null);
+    // Optimistic UI update
+    setDocuments(prev => prev.filter(d => d.id !== documentId));
+    setSelectedDocuments(prev => prev.filter(doc => doc.id !== documentId));
+    setSelectedDocument(null);
 
-    // Optimistically decrement folder note count
-    if (deletedNoteFolderId) {
+    // Optimistica folder doc couent decrement
+    if (deletedDocumentFolderId) {
       setFolders(prev =>
         prev.map(folder =>
-          folder.id === deletedNoteFolderId
-            ? { ...folder, noteCount: Math.max((folder.noteCount ?? 1) - 1, 0) }
+          folder.id === deletedDocumentFolderId
+            ? { ...folder, documentCount: Math.max((folder.documentCount ?? 1) - 1, 0) }
             : folder
         )
       );
     }
 
     try {
-      const result = await deleteNoteAction(props.userId, noteId);
+      const result = await deleteDocumentAction(props.userId, documentId);
 
       if (!result.success) {
-        // Revert on failure
-        setNotes(prevNotes);
-        setSelectedNotes(prevSelectedNotes);
+        setDocuments(prevDocuments);
+        setSelectedDocuments(prevSelectedDocuments);
 
-        if (deletedNoteFolderId) {
+        if (deletedDocumentFolderId) {
           setFolders(prev =>
             prev.map(folder =>
-              folder.id === deletedNoteFolderId
-                ? { ...folder, noteCount: (folder.noteCount ?? 0) + 1 }
+              folder.id === deletedDocumentFolderId
+                ? { ...folder, documentCount: (folder.documentCount ?? 0) + 1 }
                 : folder
             )
           );
         }
 
+
         console.error("Failed to delete note", result.error);
       }
     } catch (error) {
       // Revert on exception
-      setNotes(prevNotes);
-      setSelectedNotes(prevSelectedNotes);
+      setDocuments(prevDocuments);
+      setSelectedDocuments(prevSelectedDocuments);
 
-      if (deletedNoteFolderId) {
+      if (deletedDocumentFolderId) {
         setFolders(prev =>
           prev.map(folder =>
-            folder.id === deletedNoteFolderId
-              ? { ...folder, noteCount: (folder.noteCount ?? 0) + 1 }
+            folder.id === deletedDocumentFolderId
+              ? { ...folder, documentCount: (folder.documentCount ?? 0) + 1 }
               : folder
           )
         );
@@ -368,9 +296,13 @@ export default function DocumentsPage(props: { documents: DB_DocumentType[], doc
     }
   };
 
+  //TODO: Set the newes forder to be result.data, so that the user do not need to refresh to access the now document
 
   const handleDocumentUpload = async () => {
+    const optimisticDocument: DB_DocumentType = {
+      id: Date.now(),
 
+    }
 
   }
 
@@ -523,64 +455,307 @@ export default function DocumentsPage(props: { documents: DB_DocumentType[], doc
               <Brain className="w-4 h-4 mr-2" />
               AI Insights
             </Button>
+
             <Dialog open={isUploadDialogOpen} onOpenChange={setIsUploadDialogOpen}>
               <DialogTrigger asChild>
                 <Button>
                   <Upload className="w-4 h-4 mr-2" />
                   Upload
                 </Button>
-
               </DialogTrigger>
-              <DialogContent className="max-w-2xl">
+              <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                   <DialogTitle>Upload Documents</DialogTitle>
-                  <DialogDescription>Drag and drop files or click to browse</DialogDescription>
+                  <DialogDescription>Upload files and configure their properties</DialogDescription>
                 </DialogHeader>
-                <div className="space-y-4">
-                  <div
-                    className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-blue-500 transition-colors cursor-pointer"
-                    onClick={() => fileInputRef.current?.click()}
-                    onDrop={(e) => {
-                      e.preventDefault()
-                      const files = e.dataTransfer.files
-                      if (files.length > 0) {
-                        handleFileUpload(files)
-                      }
-                    }}
-                    onDragOver={(e) => e.preventDefault()}
-                  >
-                    <CloudUpload className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                    <UploadDropzone endpoint="claudeUploader"
-                      onClientUploadComplete={() => {
-                        navigate.refresh();
-                      }}
-                      input={{ folder: selectedFolder }} />
-                    <p className="text-lg font-medium">Drop files here or click to browse</p>
-                    <p className="text-sm text-gray-500">Supports PDF, DOCX, PPTX, XLSX, TXT, and more</p>
-                  </div>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    multiple
-                    className="hidden"
-                    onChange={(e) => {
-                      if (e.target.files) {
-                        handleFileUpload(e.target.files)
-                      }
-                    }}
-                  />
-                  {isUploading && (
+
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {/* File Upload Section */}
+                  <div className="space-y-4">
                     <div className="space-y-2">
-                      <div className="flex justify-between text-sm">
-                        <span>Uploading...</span>
-                        <span>{uploadProgress}%</span>
+                      <Label className="text-sm font-medium">Files</Label>
+                      <div
+                        className="rounded-lg p-6 text-center hover:border-blue-500 transition-colors cursor-pointer"
+                      >
+
+
+                        <UploadDropzone
+                          endpoint="claudeUploader"
+                          onClientUploadComplete={(res) => {
+                            console.log("Upload response:", res); // Add this for debugging
+                            if (res && res[0]) {
+                              updateUploadForm("url", res[0].name);
+                              console.log("File URL set:", res[0].name); // Add this for debugging
+                            }
+                          }}
+                          onUploadError={(error) => {
+                            console.error("Upload error:", error); // Add this for debugging
+                          }}
+                        />
                       </div>
-                      <Progress value={uploadProgress} />
+
+
+                      {isUploading && (
+                        <div className="space-y-2">
+                          <div className="flex justify-between text-sm">
+                            <span>Uploading...</span>
+                            <span>{uploadProgress}%</span>
+                          </div>
+                          <Progress value={uploadProgress} />
+                        </div>
+                      )}
                     </div>
-                  )}
+
+                    {/* Folder Selection */}
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">Destination Folder</Label>
+                      <Select
+                        value={selectedFolder?.id?.toString() || "none"}
+                        onValueChange={(value) => setSelectedFolder(value === "none" ? null : folders.find(f => f.id.toString() === value) || null)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select folder" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">
+                            <div className="flex items-center gap-2">
+                              <FolderIcon className="w-4 h-4" />
+                              No Folder (Root)
+                            </div>
+                          </SelectItem>
+                          {folders.map((folder) => (
+                            <SelectItem key={folder.id} value={folder.id.toString()}>
+                              <div className="flex items-center gap-2">
+                                <div
+                                  className="w-4 h-4 rounded"
+                                  style={{ backgroundColor: folder.color }}
+                                />
+                                {folder.name}
+                              </div>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  {/* Metadata Section */}
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">Category</Label>
+                      <Select
+                        value={uploadForm.category}
+                        onValueChange={(value) => updateUploadForm("category", value)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {categories.map((category) => (
+                            <SelectItem key={category} value={category}>
+                              {category}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">Subject</Label>
+                      <Select
+                        value={uploadForm.subject}
+                        onValueChange={(value) => updateUploadForm("subject", value)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select subject" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {subjects.map((subject) => (
+                            <SelectItem key={subject} value={subject}>
+                              {subject}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">Difficulty Level</Label>
+                      <Select
+                        value={uploadForm.difficulty}
+                        onValueChange={(value) => updateUploadForm("difficulty", value)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {difficulties.map((difficulty) => (
+                            <SelectItem key={difficulty} value={difficulty}>
+                              <Badge className={documentDifficultyColors[difficulty.toLowerCase() as keyof typeof documentDifficultyColors]}>
+                                {difficulty}
+                              </Badge>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">Description</Label>
+                      <textarea
+                        className="w-full min-h-[80px] p-3 border border-gray-300 rounded-md resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="Add a description for your documents..."
+                        value={uploadForm.description}
+                        onChange={(e) => updateUploadForm("description", e.target.value)}
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">Tags</Label>
+                      <div className="flex gap-2">
+                        <Input
+                          placeholder="Add tag and press Enter"
+                          value={newTag}
+                          onChange={(e) => setNewTag(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" && newTag.trim()) {
+                              e.preventDefault();
+                              if (!uploadForm.tags.includes(newTag.trim())) {
+                                updateUploadForm("tags", [...uploadForm.tags, newTag.trim()]);
+                              }
+                              setNewTag("");
+                            }
+                          }}
+                          className="flex-1"
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            if (newTag.trim() && !uploadForm.tags.includes(newTag.trim())) {
+                              updateUploadForm("tags", [...uploadForm.tags, newTag.trim()]);
+                              setNewTag("");
+                            }
+                          }}
+                        >
+                          <Tag className="w-4 h-4" />
+                        </Button>
+                      </div>
+
+                      {uploadForm.tags.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-2">
+                          {uploadForm.tags.map((tag, index) => (
+                            <Badge key={index} variant="secondary" className="cursor-pointer">
+                              {tag}
+                              <button
+                                onClick={() => {
+                                  updateUploadForm("tags", uploadForm.tags.filter((_, i) => i !== index));
+                                }}
+                                className="ml-1 text-gray-500 hover:text-gray-700"
+                              >
+                                ×
+                              </button>
+                            </Badge>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Document Options */}
+                    <div className="space-y-3">
+                      <Label className="text-sm font-medium">Document Options</Label>
+
+                      <div className="flex items-center space-x-2">
+                        <input
+                          type="checkbox"
+                          id="starred"
+                          checked={uploadForm.isStarred}
+                          onChange={(e) => updateUploadForm("isStarred", e.target.checked)}
+                          className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                        />
+                        <Label htmlFor="starred" className="text-sm flex items-center gap-2 cursor-pointer">
+                          <Star className="w-4 h-4" />
+                          Star these documents
+                        </Label>
+                      </div>
+
+                      <div className="flex items-center space-x-2">
+                        <input
+                          type="checkbox"
+                          id="shared"
+                          checked={uploadForm.isShared}
+                          onChange={(e) => updateUploadForm("isShared", e.target.checked)}
+                          className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                        />
+                        <Label htmlFor="shared" className="text-sm flex items-center gap-2 cursor-pointer">
+                          <Share2 className="w-4 h-4" />
+                          Make shareable
+                        </Label>
+                      </div>
+
+                      <div className="flex items-center space-x-2">
+                        <input
+                          type="checkbox"
+                          id="locked"
+                          checked={uploadForm.isLocked}
+                          onChange={(e) => updateUploadForm("isLocked", e.target.checked)}
+                          className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                        />
+                        <Label htmlFor="locked" className="text-sm flex items-center gap-2 cursor-pointer">
+                          <Lock className="w-4 h-4" />
+                          Lock from editing
+                        </Label>
+                      </div>
+                    </div>
+                  </div>
                 </div>
+
+                <DialogFooter className="mt-6">
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setIsUploadDialogOpen(false);
+                      // Reset form
+                      setUploadForm({
+                        category: "Academic",
+                        tags: [],
+                        url: "",
+                        description: "",
+                        subject: "",
+                        difficulty: "Intermediate",
+                        isStarred: false,
+                        isShared: false,
+                        isLocked: false,
+                      });
+                      setNewTag("");
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={() => {
+                      console.log(uploadForm)
+                    }}
+                    disabled={isUploading}
+                  >
+                    {isUploading ? (
+                      <>
+                        <CloudUpload className="w-4 h-4 mr-2 animate-spin" />
+                        Uploading...
+                      </>
+                    ) : (
+                      <>
+                        <Upload className="w-4 h-4 mr-2" />
+                        Upload Documents
+                      </>
+                    )}
+                  </Button>
+                </DialogFooter>
               </DialogContent>
             </Dialog>
+
+
           </div>
         </div>
 
@@ -758,6 +933,7 @@ export default function DocumentsPage(props: { documents: DB_DocumentType[], doc
           {/* Sidebar */}
           <div className="space-y-4">
 
+
             <Card>
               <CardHeader className="flex items-center justify-between">
                 <CardTitle className="text-lg">Folders</CardTitle>
@@ -818,9 +994,9 @@ export default function DocumentsPage(props: { documents: DB_DocumentType[], doc
                   {folders.map((folder) => (
                     <div key={folder.id} className="flex items-center space-x-2">
                       <Button
-                        variant={selectedFolder === folder.id ? "default" : "ghost"}
+                        variant={selectedFolder?.id === folder.id ? "default" : "ghost"}
                         className="flex-1 justify-start"
-                        onClick={() => setSelectedFolder(folder.id)}
+                        onClick={() => setSelectedFolder(folder)}
                       >
                         <div
                           className="w-4 h-4 rounded mr-2"
@@ -838,7 +1014,7 @@ export default function DocumentsPage(props: { documents: DB_DocumentType[], doc
                             variant="ghost"
                             size="icon"
                           >
-                            <TrashIcon className="w-4 h-4 text-red-500" />
+                            <TrashIcon className="w-4 h-4 text-black-500" />
                           </Button>
                         </DialogTrigger>
                         <DialogContent>

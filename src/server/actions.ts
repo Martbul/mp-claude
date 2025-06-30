@@ -244,6 +244,43 @@ export async function unpinNoteAction(userId: string, noteId: number) {
 
 
 
+export async function deleteDocumentAction(userId: string, documentId: number) {
+  try {
+
+    const [documentForDeletion] = await db
+      .select()
+      .from(documents_table)
+      .where(eq(documents_table.id, documentId));
+
+    if (documentForDeletion?.folderId) {
+      await db
+        .update(document_folders_table)
+        .set({
+          documentCount: sql`${document_folders_table.documentCount} - 1`,
+        })
+        .where(
+          and(
+            eq(document_folders_table.id, documentForDeletion.folderId),
+            eq(document_folders_table.ownerId, documentForDeletion.ownerId)
+          )
+        );
+    }
+
+
+    await db.delete(documents_table).where(and(
+      eq(documents_table.id, Number(documentId)),
+      eq(documents_table.ownerId, userId)
+    ));
+
+    return { success: true }
+
+  } catch (error) {
+    console.log("Failed to delete document", error)
+    return { success: false, error: "Filed to delete document" }
+  }
+}
+
+
 export async function deleteNoteAction(userId: string, noteId: number) {
   try {
 
