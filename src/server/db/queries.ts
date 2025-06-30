@@ -1,7 +1,13 @@
 import { calendar_events_table, type DB_NoteType, documents_table, files_table, folders_table, notes_table, type DB_FileType, note_folders_table, DB_NoteFolderType, settings_table, document_folders_table } from "~/server/db/schema";
 import { db } from "~/server/db";
-import { and, desc, eq, isNull } from "drizzle-orm";
+import { and, desc, eq, gte, isNull, lte } from "drizzle-orm";
 
+type DashboardStats = {
+  allTimeNotes: number;
+  allTimeDocuments: number;
+  percentageOfNotesCreatedLastMonth: number;
+  percentageOfDocumentsCreatedLastMonth: number;
+};
 export const QUERIES = {
   //you dont have to async/await if you are returning a promise
   getFolders: function(folderId: number) {
@@ -61,7 +67,7 @@ export const QUERIES = {
 
   getCalEvents: async function(userId: string) {
     const calEvents = await db.select().from(calendar_events_table).where(eq(calendar_events_table.ownerId, userId))
-    return calEvents[0]
+    return calEvents
   },
 
 
@@ -82,7 +88,90 @@ export const QUERIES = {
   getCalendarEvents: async function(userId: string) {
     const calendarEvents = await db.select().from(calendar_events_table).where(eq(calendar_events_table.ownerId, userId))
     return calendarEvents
+  },
+
+  getDailyCalEvents: async function(userId: string) {
+    const now = new Date();
+
+    // Convert to start and end of the day in ISO format
+    const startOfDay = new Date(now);
+    startOfDay.setHours(0, 0, 0, 0);
+
+    const endOfDay = new Date(now);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    const startOfDayStr = startOfDay.toISOString();
+    const endOfDayStr = endOfDay.toISOString();
+
+    const dailyEvents = await db
+      .select()
+      .from(calendar_events_table)
+      .where(
+        and(
+          eq(calendar_events_table.ownerId, userId),
+          gte(calendar_events_table.date, startOfDayStr),
+          lte(calendar_events_table.date, endOfDayStr)
+        )
+      );
+    console.log(dailyEvents[0])
+
+    return dailyEvents;
+  },
+
+  getDashboardStats: async function(userId: string): Promise<DashboardStats> {
+    const now = new Date();
+    const firstDayOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const lastDayOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0);
+
+    const allTimeNotes = await db
+      .select()
+      .from(notes_table)
+      .where(eq(notes_table.ownerId, userId));
+
+    const allTimeDocuments = await db
+      .select()
+      .from(documents_table)
+      .where(eq(documents_table.ownerId, userId));
+
+    const notesLastMonth = await db
+      .select()
+      .from(notes_table)
+      .where(
+        and(
+          eq(notes_table.ownerId, userId),
+          gte(notes_table.createdAt, firstDayOfLastMonth),
+          lte(notes_table.createdAt, lastDayOfLastMonth)
+        )
+      );
+
+    const documentsLastMonth = await db
+      .select()
+      .from(documents_table)
+      .where(
+        and(
+          eq(documents_table.ownerId, userId),
+          gte(documents_table.dateCreated, firstDayOfLastMonth),
+          lte(documents_table.dateCreated, lastDayOfLastMonth)
+        )
+      );
+
+    // Calculate percentages
+    const percentageOfNotesCreatedLastMonth = allTimeNotes.length
+      ? (notesLastMonth.length / allTimeNotes.length) * 100
+      : 0;
+
+    const percentageOfDocumentsCreatedLastMonth = allTimeDocuments.length
+      ? (documentsLastMonth.length / allTimeDocuments.length) * 100
+      : 0;
+
+    return {
+      allTimeNotes: allTimeNotes.length,
+      allTimeDocuments: allTimeDocuments.length,
+      percentageOfNotesCreatedLastMonth: parseFloat(percentageOfNotesCreatedLastMonth.toFixed(2)),
+      percentageOfDocumentsCreatedLastMonth: parseFloat(percentageOfDocumentsCreatedLastMonth.toFixed(2)),
+    };
   }
+
 }
 
 

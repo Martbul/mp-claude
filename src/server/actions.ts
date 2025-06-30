@@ -23,7 +23,7 @@ export async function deleteFile(fileId: number) {
   const [file] = await db
     .select()
     .from(files_table)
-    .where(and(eq(files_table.id, fileId), eq(files_table.ownerId, session.userId))) //and want every condition to be true in order to execute the db delete
+    .where(and(eq(files_table.id, fileId), eq(files_table.ownerId, session.userId)))
 
   if (!file) {
     return { error: "File not found" }

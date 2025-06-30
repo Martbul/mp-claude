@@ -71,6 +71,9 @@ export default function WorkspaceLayout(props: { children: React.ReactNode }) {
       isActive: false,
     },
   ]);
+
+  const activeItem = navigationItems.find(item => item.isActive);
+  const currentNavItem = activeItem ? activeItem.title : "Dashboard";
   return (
     <SidebarProvider>
       <Sidebar>
@@ -163,7 +166,7 @@ export default function WorkspaceLayout(props: { children: React.ReactNode }) {
           <Breadcrumb>
             <BreadcrumbList>
               <BreadcrumbItem>
-                <BreadcrumbPage>Dashboard</BreadcrumbPage>
+                <BreadcrumbPage>{currentNavItem}</BreadcrumbPage>
               </BreadcrumbItem>
             </BreadcrumbList>
           </Breadcrumb>

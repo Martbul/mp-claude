@@ -8,6 +8,7 @@ import {
   index,
 } from "drizzle-orm/singlestore-core";
 import { createTable } from "./shared";
+//TODO: App filed subject
 
 export const calendar_events_table = createTable("calendar_events_table", {
   id: bigint("id", { mode: "number", unsigned: true }).primaryKey().autoincrement(),
