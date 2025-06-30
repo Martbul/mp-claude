@@ -42,7 +42,7 @@ export const documents_table = createTable("documents_table", {
   readingTime: int("reading_time"),
   difficulty: text("difficulty"),
   subject: text("subject"),
-  folderId: int("folder_id").default(sql`null`)
+  folderId: bigint("folder_id", { mode: "number" }).default(sql`null`)
 }, (t) => ({
   pathIndex: index("path_index").on(t.path),
   statusIndex: index("status_index").on(t.status),

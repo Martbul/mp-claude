@@ -38,7 +38,7 @@ export const notes_table = createTable("notes_table", {
   version: int("version").notNull().default(1),
   isShared: boolean("is_shared").notNull().default(false),
   viewCount: int("view_count").notNull().default(0),
-  folderId: int("folder_id").default(sql`null`)
+  folderId: bigint("folder_id", { mode: "number" }).default(sql`null`)
 }, (t) => ({
   ownerIdIndex: index("owner_id_index").on(t.ownerId),
   folderIndex: index("folder_index").on(t.folderId),

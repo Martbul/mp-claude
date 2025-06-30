@@ -906,7 +906,7 @@ export default function NotesPage(props: { notes: DB_NoteType[], notesFolders: D
                             variant="ghost"
                             size="icon"
                           >
-                            <TrashIcon className="w-4 h-4 text-red-500" />
+                            <TrashIcon className="w-4 h-4 text-black-500" />
                           </Button>
                         </DialogTrigger>
                         <DialogContent>

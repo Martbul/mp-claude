@@ -141,6 +141,7 @@ export async function createDocumentAction(documentData: {
   folderId: number | null;
   ownerId: string;
 }) {
+  console.log(documentData)
   try {
 
     const newDocument: Omit<DB_DocumentType, 'id'> = {
