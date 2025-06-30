@@ -67,7 +67,6 @@ export default function ClaudeContents(props: {
           onClientUploadComplete={() => {
             navigate.refresh();
           }}
-          input={{ folderId: props.currentFolderId }}
         />
       </div>
     </div>

@@ -26,11 +26,12 @@ import {
 import { redirect } from "next/navigation"
 import { DB_DocumentType } from "~/server/db/schema"
 import { formatFileSize } from "../utils/utils"
+import { documentDifficultyColors, documentFileTypeIcons, documentStatusColors } from "~/app/_constants/constants"
 
 
 type GridViewProps = {
   filteredDocuments: DB_DocumentType[];
-  selectedDocuments: number[];
+  selectedDocuments: DB_DocumentType[];
   deleteDocument: (documentId: number) => void;
   toggleStar: (documentId: number) => void;
 }
@@ -46,11 +47,11 @@ const DocumentsGridView = ({
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
       {filteredDocuments.map((doc) => {
-        const IconComponent = fileTypeIcons[doc.type]
+        const IconComponent = documentFileTypeIcons[doc.type]
         return (
           <Card
             key={doc.id}
-            className={`group hover:shadow-lg transition-all cursor-pointer ${selectedDocuments.includes(doc.id) ? "ring-2 ring-blue-500" : ""
+            className={`group hover:shadow-lg transition-all cursor-pointer ${selectedDocuments.includes(doc) ? "ring-2 ring-blue-500" : ""
               }`}
             onClick={() => redirect(`/workspace/documents/${doc.id}`)}
           >

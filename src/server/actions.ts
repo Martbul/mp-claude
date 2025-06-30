@@ -3,7 +3,7 @@
 import { and, desc, eq, sql } from "drizzle-orm"
 import { db } from "./db"
 import { calendar_events_table, document_folders_table, documents_table, files_table, note_folders_table, notes_table } from "./db/schema"
-import type { DB_CalendarrType, DB_NoteType } from "./db/schema"
+import type { DB_CalendarrType, DB_DocumentType, DB_NoteType } from "./db/schema"
 import { auth } from "@clerk/nextjs/server";
 import { UTApi } from "uploadthing/server";
 import { cookies } from "next/headers";
@@ -122,6 +122,97 @@ export async function createNote(noteData: {
     };
   }
 }
+
+
+
+export async function createDocumentAction(documentData: {
+  name: string;
+  type: string;
+  size: number;
+  url: string;
+  description: string;
+  tags: string[];
+  category: string;
+  isStarred: boolean,
+  isShared: boolean,
+  isLocked: boolean,
+  difficulty: string,
+  subject: string,
+  folderId: number | null;
+  ownerId: string;
+}) {
+  try {
+
+    const newDocument: Omit<DB_DocumentType, 'id'> = {
+      name: documentData.name || "Untitled Document",
+      type: documentData.type,
+      size: documentData.size,
+      ownerId: documentData.ownerId,
+      url: documentData.url || "",
+      dateCreated: new Date(),
+      dateModified: new Date(),
+      tags: documentData.tags || [],
+      category: documentData.category || "Uncategorized",
+      isStarred: documentData.isStarred,
+      isShared: documentData.isShared,
+      isLocked: documentData.isLocked,
+      thumbnail: "https://www.google.com/url?sa=i&url=https%3A%2F%2Fpngtree.com%2Fso%2Fdoc&psig=AOvVaw03MgAeyN8YUUp8me6WJclf&ust=1751385819668000&source=images&cd=vfe&opi=89978449&ved=0CBQQjRxqFwoTCKCP-eLCmY4DFQAAAAAdAAAAABAX",
+      description: documentData.description,
+      version: 1,
+      downloadCount: 0,
+      viewCount: 0,
+      aiProcessed: false,
+      aiSummary: null,
+      aiTags: [],
+      collaborators: [],
+      parentFolder: "FAKEFOLDER",
+      path: "FAKEPATH",
+      status: "synced",
+      aiScore: null,
+      readingTime: null,
+      difficulty: documentData.difficulty,
+      subject: documentData.subject,
+      folderId: documentData.folderId,
+    };
+    console.log(newDocument)
+    await db.insert(documents_table).values(newDocument);
+
+    const lastUserDocument = await db
+      .select()
+      .from(documents_table)
+      .where(eq(documents_table.ownerId, documentData.ownerId))
+      .orderBy(desc(documents_table.dateCreated))
+      .limit(1)
+      .then(rows => rows[0]);
+
+    if (documentData.folderId) {
+      await db
+        .update(document_folders_table)
+        .set({
+          documentCount: sql`${document_folders_table.documentCount} + 1`,
+        })
+        .where(
+          and(
+            eq(document_folders_table.id, documentData.folderId),
+            eq(document_folders_table.ownerId, documentData.ownerId)
+          )
+        );
+    }
+
+    return {
+      success: true,
+      data: lastUserDocument,
+    };
+  } catch (error) {
+    console.error("Failed to create document:", error);
+    return {
+      success: false,
+      error: "Failed to create document",
+    };
+  }
+}
+
+
 
 export async function getNotes(userId: string) {
   try {

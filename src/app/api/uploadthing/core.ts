@@ -11,6 +11,10 @@ export const ourFileRouter = {
       maxFileSize: "4MB",
       maxFileCount: 1,
     },
+    pdf: { // Add this if uploading PDFs
+      maxFileSize: "16MB",
+      maxFileCount: 1,
+    },
     blob: {
       maxFileSize: "1GB",
       maxFileCount: 999,
@@ -35,7 +39,7 @@ export const ourFileRouter = {
       console.log("file url", file.ufsUrl);
 
       // !!! Whatever is returned here is sent to the clientside `onClientUploadComplete` callback
-      return { fileUrl: file.ufsUrl };
+      return { fileUrl: file.ufsUrl, fileName: file.name, fileSize: file.size, fileType: file.type };
     }),
 } satisfies FileRouter;
 

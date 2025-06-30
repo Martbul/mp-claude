@@ -18,7 +18,7 @@ import type { DB_DocumentType } from "~/server/db/schema"
 
 type ListViewProps = {
   filteredDocuments: DB_DocumentType[];
-  selectedDocuments: number[];
+  selectedDocuments: DB_DocumentType[];
   toggleDocumentSelection: (documentId: number) => void;
 }
 

@@ -2,7 +2,7 @@
 
 import React from "react"
 
-import { useState, useRef, useCallback } from "react"
+import { useState, useRef } from "react"
 import {
   FileText,
   Upload,
@@ -34,7 +34,6 @@ import {
   Lock,
 } from "lucide-react"
 
-import { useRouter } from "next/navigation";
 import { Button } from "~/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card"
 import { Input } from "~/components/ui/input"
@@ -62,7 +61,7 @@ import { UploadDropzone } from "~/components/uploadthing"
 import DocumentsKanbanView from "../documentRenderViews/KanbanView";
 import DocumentsTimelineView from "../documentRenderViews/TimeLineView";
 import DocumentsListView from "../documentRenderViews/ListView";
-import { createDocumentFolderAction, deleteDocumentAction, deleteDocumentFolderAction } from "~/server/actions";
+import { createDocumentAction, createDocumentFolderAction, deleteDocumentAction, deleteDocumentFolderAction } from "~/server/actions";
 
 const categories = [
   'Academic', 'Business', 'Personal', 'Research', 'Legal', 'Medical',
@@ -91,12 +90,14 @@ export default function DocumentsPage(props: { documents: DB_DocumentType[], doc
   const [showAIInsights, setShowAIInsights] = useState(false)
   const [uploadProgress, setUploadProgress] = useState(0)
   const [isUploading, setIsUploading] = useState(false)
-  const fileInputRef = useRef<HTMLInputElement>(null)
   const [newFolderName, setNewFolderName] = useState("");
   const [newFolderColor, setNewFolderColor] = useState(COLOR_OPTIONS[0]);
   const [isCreateFolderDialogOpen, setIsCreateFolderDialogOpen] = useState(false);
   const [newTag, setNewTag] = useState("");
-  const [uploadForm, setUploadForm] = useState({
+  const [newDocument, setNewDocument] = useState({
+    name: "",
+    type: "",
+    size: 0,
     category: "Academic",
     url: "",
     tags: [] as string[],
@@ -109,12 +110,11 @@ export default function DocumentsPage(props: { documents: DB_DocumentType[], doc
   });
 
   const updateUploadForm = (field: string, value: any) => {
-    setUploadForm(prev => ({
+    setNewDocument(prev => ({
       ...prev,
       [field]: value
     }));
   };
-  const navigate = useRouter();
   // Filter and sort documents
   const filteredDocuments = documents
     .filter((doc) => {
@@ -164,11 +164,20 @@ export default function DocumentsPage(props: { documents: DB_DocumentType[], doc
   const categories = Array.from(new Set(documents.map((doc) => doc.category)))
 
 
+  function getFileType(filename: string): string | null {
+    if (!filename || typeof filename !== 'string') return null;
+
+    const parts = filename.split('.');
+    if (parts.length < 2) return null;
+
+    return parts.pop()!.toLowerCase();
+  }
+
   const handleCreateDocumentFolder = async () => {
     const trimmedName = newFolderName.trim();
     if (!trimmedName) return;
 
-    const optimisticFolder: DB_DocumentFolderType = {
+    const optimisticFolder: Partial<DB_DocumentFolderType> = {
       id: Date.now(),
       name: trimmedName,
       color: newFolderColor ?? COLOR_OPTIONS[0]!,
@@ -230,9 +239,6 @@ export default function DocumentsPage(props: { documents: DB_DocumentType[], doc
       console.error("Error deleting folder", error);
     }
   }
-
-
-
 
 
   const deleteDocument = async (documentId: number) => {
@@ -298,141 +304,155 @@ export default function DocumentsPage(props: { documents: DB_DocumentType[], doc
 
   //TODO: Set the newes forder to be result.data, so that the user do not need to refresh to access the now document
 
-  const handleDocumentUpload = async () => {
+
+  const handleDocumentDBPersistance = async () => {
     const optimisticDocument: DB_DocumentType = {
       id: Date.now(),
-
-    }
-
-  }
-
-  const createNote = async () => {
-    const wordCount = newNote.content.split(" ").filter(word => word.length > 0).length;
-
-    const optimisticNote: DB_NoteType = {
-      id: Date.now(),
-      title: newNote.title || "Untitled Note",
+      name: newDocument.name || "Untitled Document",
+      type: newDocument.type,
+      size: newDocument.size,
       ownerId: props.userId,
-      content: newNote.content,
-      excerpt: newNote.content.substring(0, 150) + (newNote.content.length > 150 ? "..." : ""),
-      category: newNote.category || "Uncategorized",
-      tags: newNote.tags,
-      color: newNote.color ?? "#ffffff",
-      isPinned: false,
+      url: newDocument.url || "",
+      dateCreated: new Date(),
+      dateModified: new Date(),
+      tags: newDocument.tags || [],
+      category: newDocument.category || "Uncategorized",
       isStarred: false,
-      isBookmarked: false,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      author: "",
-      wordCount,
-      readingTime: Math.ceil(wordCount / 200),
-      priority: newNote.priority ?? "medium",
-      status: "draft",
-      template: null,
-      linkedNotes: [],
-      attachments: [],
-      collaborators: [],
-      aiGenerated: false,
-      aiSummary: null,
-      version: 1,
       isShared: false,
+      isLocked: false,
+      thumbnail: "https://www.google.com/url?sa=i&url=https%3A%2F%2Fpngtree.com%2Fso%2Fdoc&psig=AOvVaw03MgAeyN8YUUp8me6WJclf&ust=1751385819668000&source=images&cd=vfe&opi=89978449&ved=0CBQQjRxqFwoTCKCP-eLCmY4DFQAAAAAdAAAAABAX",
+      description: newDocument.description,
+      version: 1,
+      downloadCount: 0,
       viewCount: 0,
-      folder: selectedFolder ?? "",
+      aiProcessed: false,
+      aiSummary: null,
+      aiTags: [],
+      collaborators: [],
+      parentFolder: "FAKEFOLDER",
+      path: "FAKEPATH",
+      status: "synced",
+      aiScore: null,
+      readingTime: null,
+      difficulty: newDocument.difficulty,
+      subject: newDocument.subject,
+      folderId: selectedFolder ? selectedFolder.id : null,
     };
 
-    const noteDataToSave = {
-      title: newNote.title,
-      content: newNote.content,
-      category: newNote.category,
-      tags: newNote.tags,
-      color: newNote.color ?? "#ffffff",
-      priority: newNote.priority,
-      folder: selectedFolder ?? "",
+    const documentDataToSave = {
+      name: newDocument.name,
+      type: newDocument.type,
+      size: newDocument.size,
+      url: newDocument.url,
+      tags: newDocument.tags,
+      description: newDocument.description,
+      category: newDocument.category,
+      isStarred: newDocument.isStarred,
+      isShared: newDocument.isShared,
+      isLocked: newDocument.isLocked,
+      difficulty: newDocument.difficulty,
+      subject: newDocument.subject,
+      folderId: selectedFolder ? selectedFolder.id : null,
       ownerId: props.userId,
     };
 
-    setNotes(prev => [...prev, optimisticNote]);
-
+    setDocuments(prev => [...prev, optimisticDocument]);
 
     if (selectedFolder) {
       setFolders(prev =>
         prev.map(folder =>
-          folder.id === selectedFolder
-            ? { ...folder, noteCount: (folder.noteCount ?? 0) + 1 }
+          folder.id === selectedFolder.id
+            ? { ...folder, documentCount: (folder.documentCount ?? 0) + 1 }
             : folder
         )
       );
     }
 
-    setNewNote({
-      title: "",
-      content: "",
-      category: "",
+    setNewDocument({
+      name: "",
+      type: "",
+      size: 0,
+      url: "",
       tags: [],
-      color: noteColors[0],
-      priority: "medium",
-      folder: "",
+      category: "Academic",
+      description: "",
+      difficulty: "Intermediate",
+      subject: "",
+      isStarred: false,
+      isShared: false,
+      isLocked: false,
     });
 
-    setIsCreateNoteDialogOpen(false);
+
+    setIsUploadDialogOpen(false);
 
     // Ensure proper return type
-    type CreateNoteResult =
-      | { success: true; data: DB_NoteType }
+    type CreateDocumentResult =
+      | { success: true; data: DB_DocumentType }
       | { success: false; error: string };
 
     try {
-      const result = await createNoteAction(noteDataToSave) as CreateNoteResult;
-      console.log(result)
+      const result = await createDocumentAction(documentDataToSave) as CreateDocumentResult;
+      console.log(result);
+
       if (result.success && result.data) {
-        setNotes(prev =>
-          prev.map(note =>
-            note.id === optimisticNote.id ? result.data : note
+        setDocuments(prev =>
+          prev.map(document =>
+            document.id === optimisticDocument.id ? result.data : document
           )
         );
       } else {
-        setNotes(prev => prev.filter(note => note.id !== optimisticNote.id));
-        console.error("Failed to create note");
-        setNewNote({
-          title: noteDataToSave.title,
-          content: noteDataToSave.content,
-          category: noteDataToSave.category,
-          tags: noteDataToSave.tags,
-          color: noteDataToSave.color,
-          priority: noteDataToSave.priority,
-          folder: noteDataToSave.folder,
+        setDocuments(prev => prev.filter(document => document.id !== optimisticDocument.id));
+        console.log("Failed to create document");
+        setNewDocument({
+          name: documentDataToSave.name,
+          type: documentDataToSave.type,
+          size: documentDataToSave.size,
+          url: documentDataToSave.url,
+          tags: documentDataToSave.tags,
+          category: documentDataToSave.category,
+          description: documentDataToSave.description,
+          difficulty: documentDataToSave.difficulty,
+          subject: documentDataToSave.subject,
+          isStarred: documentDataToSave.isStarred,
+          isShared: documentDataToSave.isShared,
+          isLocked: documentDataToSave.isLocked,
         });
-
 
         // Roll back folder count
         if (selectedFolder) {
           setFolders(prev =>
             prev.map(folder =>
-              folder.id === selectedFolder
-                ? { ...folder, noteCount: Math.max((folder.noteCount ?? 1) - 1, 0) }
+              folder.id === selectedFolder.id
+                ? { ...folder, documentCount: Math.max((folder.documentCount ?? 1) - 1, 0) }
                 : folder
             )
           );
         }
-
-        setIsCreateNoteDialogOpen(true);
+        setIsUploadDialogOpen(true);
       }
     } catch (error) {
-      setNotes(prev => prev.filter(note => note.id !== optimisticNote.id));
-      console.error("Failed to create note:", error);
-      setNewNote({
-        title: noteDataToSave.title,
-        content: noteDataToSave.content,
-        category: noteDataToSave.category,
-        tags: noteDataToSave.tags,
-        color: noteDataToSave.color,
-        priority: noteDataToSave.priority,
-        folder: noteDataToSave.folder,
+      setDocuments(prev => prev.filter(document => document.id !== optimisticDocument.id));
+      console.log("Failed to create document:", error);
+      setNewDocument({
+        name: documentDataToSave.name,
+        type: documentDataToSave.type,
+        size: documentDataToSave.size,
+        url: documentDataToSave.url,
+        tags: documentDataToSave.tags,
+        category: documentDataToSave.category,
+        description: documentDataToSave.description,
+        difficulty: documentDataToSave.difficulty,
+        subject: documentDataToSave.subject,
+        isStarred: documentDataToSave.isStarred,
+        isShared: documentDataToSave.isShared,
+        isLocked: documentDataToSave.isLocked,
       });
-      setIsCreateNoteDialogOpen(true);
+
+
+      setIsUploadDialogOpen(true);
     }
   };
-
 
 
   return (
@@ -470,28 +490,62 @@ export default function DocumentsPage(props: { documents: DB_DocumentType[], doc
                 </DialogHeader>
 
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  {/* File Upload Section */}
                   <div className="space-y-4">
                     <div className="space-y-2">
                       <Label className="text-sm font-medium">Files</Label>
                       <div
                         className="rounded-lg p-6 text-center hover:border-blue-500 transition-colors cursor-pointer"
                       >
-
-
                         <UploadDropzone
                           endpoint="claudeUploader"
                           onClientUploadComplete={(res) => {
-                            console.log("Upload response:", res); // Add this for debugging
-                            if (res && res[0]) {
-                              updateUploadForm("url", res[0].name);
-                              console.log("File URL set:", res[0].name); // Add this for debugging
+                            console.log("Upload response:", res);
+                            if (!res || res.length === 0) {
+                              console.error("No response data received");
+                              return;
+                            }
+                            const uploadedFile = res[0];
+                            if (uploadedFile) {
+
+                              const fileType = getFileType(uploadedFile?.name);
+                              updateUploadForm("name", uploadedFile?.name);
+                              updateUploadForm("size", uploadedFile?.size);
+                              updateUploadForm("type", fileType);
+                              updateUploadForm("url", uploadedFile?.ufsUrl);
                             }
                           }}
                           onUploadError={(error) => {
-                            console.error("Upload error:", error); // Add this for debugging
+                            console.error("❌ CLIENT: Upload error:", error);
+                            console.error("❌ CLIENT: Error message:", error.message);
+                            console.error("❌ CLIENT: Error stack:", error.stack);
+                          }}
+                          onUploadBegin={(name) => {
+                            console.log("🚀 CLIENT: Upload started for:", name);
+                          }}
+                          onUploadProgress={(progress) => {
+                            console.log("📊 CLIENT: Upload progress:", progress + "%");
+                          }}
+                          onBeforeUploadBegin={(files) => {
+                            console.log("⏳ CLIENT: Before upload begin:", files);
+                            return files;
+                          }}
+                          appearance={{
+                            container: {
+                              border: "2px dashed #ccc",
+                              borderRadius: "8px",
+                              padding: "20px",
+                              minHeight: "200px",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              cursor: "pointer"
+                            }
+                          }}
+                          config={{
+                            mode: "auto"
                           }}
                         />
+
                       </div>
 
 
@@ -506,7 +560,6 @@ export default function DocumentsPage(props: { documents: DB_DocumentType[], doc
                       )}
                     </div>
 
-                    {/* Folder Selection */}
                     <div className="space-y-2">
                       <Label className="text-sm font-medium">Destination Folder</Label>
                       <Select
@@ -539,12 +592,11 @@ export default function DocumentsPage(props: { documents: DB_DocumentType[], doc
                     </div>
                   </div>
 
-                  {/* Metadata Section */}
                   <div className="space-y-4">
                     <div className="space-y-2">
                       <Label className="text-sm font-medium">Category</Label>
                       <Select
-                        value={uploadForm.category}
+                        value={newDocument.category}
                         onValueChange={(value) => updateUploadForm("category", value)}
                       >
                         <SelectTrigger>
@@ -563,7 +615,7 @@ export default function DocumentsPage(props: { documents: DB_DocumentType[], doc
                     <div className="space-y-2">
                       <Label className="text-sm font-medium">Subject</Label>
                       <Select
-                        value={uploadForm.subject}
+                        value={newDocument.subject}
                         onValueChange={(value) => updateUploadForm("subject", value)}
                       >
                         <SelectTrigger>
@@ -582,7 +634,7 @@ export default function DocumentsPage(props: { documents: DB_DocumentType[], doc
                     <div className="space-y-2">
                       <Label className="text-sm font-medium">Difficulty Level</Label>
                       <Select
-                        value={uploadForm.difficulty}
+                        value={newDocument.difficulty}
                         onValueChange={(value) => updateUploadForm("difficulty", value)}
                       >
                         <SelectTrigger>
@@ -605,7 +657,7 @@ export default function DocumentsPage(props: { documents: DB_DocumentType[], doc
                       <textarea
                         className="w-full min-h-[80px] p-3 border border-gray-300 rounded-md resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                         placeholder="Add a description for your documents..."
-                        value={uploadForm.description}
+                        value={newDocument.description}
                         onChange={(e) => updateUploadForm("description", e.target.value)}
                       />
                     </div>
@@ -620,8 +672,8 @@ export default function DocumentsPage(props: { documents: DB_DocumentType[], doc
                           onKeyDown={(e) => {
                             if (e.key === "Enter" && newTag.trim()) {
                               e.preventDefault();
-                              if (!uploadForm.tags.includes(newTag.trim())) {
-                                updateUploadForm("tags", [...uploadForm.tags, newTag.trim()]);
+                              if (!newDocument.tags.includes(newTag.trim())) {
+                                updateUploadForm("tags", [...newDocument.tags, newTag.trim()]);
                               }
                               setNewTag("");
                             }
@@ -633,8 +685,8 @@ export default function DocumentsPage(props: { documents: DB_DocumentType[], doc
                           variant="outline"
                           size="sm"
                           onClick={() => {
-                            if (newTag.trim() && !uploadForm.tags.includes(newTag.trim())) {
-                              updateUploadForm("tags", [...uploadForm.tags, newTag.trim()]);
+                            if (newTag.trim() && !newDocument.tags.includes(newTag.trim())) {
+                              updateUploadForm("tags", [...newDocument.tags, newTag.trim()]);
                               setNewTag("");
                             }
                           }}
@@ -643,14 +695,14 @@ export default function DocumentsPage(props: { documents: DB_DocumentType[], doc
                         </Button>
                       </div>
 
-                      {uploadForm.tags.length > 0 && (
+                      {newDocument.tags.length > 0 && (
                         <div className="flex flex-wrap gap-1 mt-2">
-                          {uploadForm.tags.map((tag, index) => (
+                          {newDocument.tags.map((tag, index) => (
                             <Badge key={index} variant="secondary" className="cursor-pointer">
                               {tag}
                               <button
                                 onClick={() => {
-                                  updateUploadForm("tags", uploadForm.tags.filter((_, i) => i !== index));
+                                  updateUploadForm("tags", newDocument.tags.filter((_, i) => i !== index));
                                 }}
                                 className="ml-1 text-gray-500 hover:text-gray-700"
                               >
@@ -662,7 +714,6 @@ export default function DocumentsPage(props: { documents: DB_DocumentType[], doc
                       )}
                     </div>
 
-                    {/* Document Options */}
                     <div className="space-y-3">
                       <Label className="text-sm font-medium">Document Options</Label>
 
@@ -670,7 +721,7 @@ export default function DocumentsPage(props: { documents: DB_DocumentType[], doc
                         <input
                           type="checkbox"
                           id="starred"
-                          checked={uploadForm.isStarred}
+                          checked={newDocument.isStarred}
                           onChange={(e) => updateUploadForm("isStarred", e.target.checked)}
                           className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                         />
@@ -684,7 +735,7 @@ export default function DocumentsPage(props: { documents: DB_DocumentType[], doc
                         <input
                           type="checkbox"
                           id="shared"
-                          checked={uploadForm.isShared}
+                          checked={newDocument.isShared}
                           onChange={(e) => updateUploadForm("isShared", e.target.checked)}
                           className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                         />
@@ -698,7 +749,7 @@ export default function DocumentsPage(props: { documents: DB_DocumentType[], doc
                         <input
                           type="checkbox"
                           id="locked"
-                          checked={uploadForm.isLocked}
+                          checked={newDocument.isLocked}
                           onChange={(e) => updateUploadForm("isLocked", e.target.checked)}
                           className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                         />
@@ -716,14 +767,16 @@ export default function DocumentsPage(props: { documents: DB_DocumentType[], doc
                     variant="outline"
                     onClick={() => {
                       setIsUploadDialogOpen(false);
-                      // Reset form
-                      setUploadForm({
-                        category: "Academic",
-                        tags: [],
+                      setNewDocument({
+                        name: "",
+                        type: "",
+                        size: 0,
                         url: "",
+                        tags: [],
+                        category: "Academic",
                         description: "",
-                        subject: "",
                         difficulty: "Intermediate",
+                        subject: "",
                         isStarred: false,
                         isShared: false,
                         isLocked: false,
@@ -735,7 +788,7 @@ export default function DocumentsPage(props: { documents: DB_DocumentType[], doc
                   </Button>
                   <Button
                     onClick={() => {
-                      console.log(uploadForm)
+                      handleDocumentDBPersistance()
                     }}
                     disabled={isUploading}
                   >
@@ -759,7 +812,6 @@ export default function DocumentsPage(props: { documents: DB_DocumentType[], doc
           </div>
         </div>
 
-        {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <Card>
             <CardContent className="p-4">
@@ -807,7 +859,6 @@ export default function DocumentsPage(props: { documents: DB_DocumentType[], doc
           </Card>
         </div>
 
-        {/* AI Insights Panel */}
         {showAIInsights && (
           <Card>
             <CardHeader>
@@ -861,7 +912,6 @@ export default function DocumentsPage(props: { documents: DB_DocumentType[], doc
           </Card>
         )}
 
-        {/* Filters and Controls */}
         <div className="flex flex-col lg:flex-row gap-4">
           <div className="flex-1 space-y-4 lg:space-y-0 lg:flex lg:items-center lg:gap-4">
             <div className="flex items-center gap-2">
@@ -887,7 +937,7 @@ export default function DocumentsPage(props: { documents: DB_DocumentType[], doc
                 ))}
               </SelectContent>
             </Select>
-            <Select value={sortBy} onValueChange={(value) => setSortBy(value as SortBy)}>
+            <Select value={sortBy} onValueChange={(value) => setSortBy(value as DocumentSortBy)}>
               <SelectTrigger className="w-full lg:w-48">
                 <SelectValue />
               </SelectTrigger>
@@ -928,9 +978,7 @@ export default function DocumentsPage(props: { documents: DB_DocumentType[], doc
           </div>
         </div>
 
-        {/* Main Content */}
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          {/* Sidebar */}
           <div className="space-y-4">
 
 
