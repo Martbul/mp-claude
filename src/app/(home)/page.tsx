@@ -110,8 +110,7 @@ export default async function HomePage() {
           Study Companion
         </h1>
         <p className="text-xl text-gray-600 mb-8 max-w-2xl">
-          Transform your study experience with AI-powered document simplification, smart note-taking, and intelligent
-          deadline management. Everything you need to excel academically.
+          Get started and sign up to access your study dashboard
         </p>
         <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12">
           <Button size="lg" className="text-lg px-8" asChild>
@@ -119,9 +118,7 @@ export default async function HomePage() {
               Get started<ArrowRight className="ml-2 w-5 h-5" />
             </Link>
           </Button>
-          <Button size="lg" variant="outline" className="text-lg px-8">
-            Watch Demo
-          </Button>
+         
         </div>
 
         {/* Stats */}
@@ -162,33 +159,7 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* Dashboard Preview */}
-      <section className="py-20 w-full px-6">
-        <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold mb-4">See It In Action</h2>
-            <p className="text-xl text-gray-600">Get a glimpse of your future study dashboard</p>
-          </div>
-          <div className="relative max-w-6xl mx-auto">
-            <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl p-1">
-              <div className="bg-white rounded-xl overflow-hidden">
-                <div className="aspect-video bg-gradient-to-br from-blue-50 to-purple-50 flex items-center justify-center">
-                  <div className="text-center">
-                    <div className="w-20 h-20 bg-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
-                      <BookOpen className="w-10 h-10 text-white" />
-                    </div>
-                    <h3 className="text-2xl font-bold text-gray-800 mb-2">Interactive Dashboard Preview</h3>
-                    <p className="text-gray-600 mb-6">Experience the full power of StudyHub</p>
-                    <Button size="lg" asChild>
-                      <Link href="/onboarding">Try It Now</Link>
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
+     
 
       {/* Testimonials */}
       <section id="testimonials" className="py-20 bg-gray-50 w-full px-6">
@@ -228,12 +199,10 @@ export default async function HomePage() {
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Button size="lg" className="text-lg px-8" asChild>
               <Link href="/onboarding">
-                Start Your Free Trial <ArrowRight className="ml-2 w-5 h-5" />
+                Start Here<ArrowRight className="ml-2 w-5 h-5" />
               </Link>
             </Button>
-            <Button size="lg" variant="outline" className="text-lg px-8">
-              Schedule Demo
-            </Button>
+           
           </div>
           <p className="text-sm text-gray-500 mt-4">No credit card required • 14-day free trial • Cancel anytime</p>
         </div>
